@@ -58,17 +58,17 @@ class AppState(context: Context) {
         settings.darkTheme = darkTheme
     }
 
-    fun setPalette(id: String) {
+    fun choosePalette(id: String) {
         palette = id
         settings.palette = id
     }
 
-    fun setColumns(value: Int) {
+    fun chooseColumns(value: Int) {
         columns = value.coerceIn(2, 4)
         settings.columns = columns
     }
 
-    fun setFont(id: String) {
+    fun chooseFont(id: String) {
         font = id
         settings.font = id
     }

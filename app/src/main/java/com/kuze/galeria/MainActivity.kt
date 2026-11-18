@@ -111,9 +111,9 @@ private fun GaleriaApp(state: AppState) {
             columns = state.columns,
             font = state.font,
             itemCount = state.items.size,
-            onPalette = { state.setPalette(it) },
-            onColumns = { state.setColumns(it) },
-            onFont = { state.setFont(it) },
+            onPalette = { state.choosePalette(it) },
+            onColumns = { state.chooseColumns(it) },
+            onFont = { state.chooseFont(it) },
             onSaved = {
                 screen = Screen.Library
                 scope.launch { state.refresh() }
