@@ -102,6 +102,47 @@ fun renderAdjusted(
 }
 
 /**
+ * Descarga el archivo del servidor y lo guarda en la galería del teléfono
+ * (DCIM/Camera para fotos, DCIM para videos). El servidor no se toca más allá de la descarga.
+ */
+suspend fun downloadMediaToGallery(context: Context, api: ServerApi, media: Media): Result<String> =
+    withContext(Dispatchers.IO) {
+        runCatching {
+            val request = Request.Builder().url(media.url).build()
+            api.client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) error("El servidor respondió ${response.code}")
+                val body = response.body ?: error("Respuesta vacía")
+                val name = media.name
+                val mime = if (media.isVideo) "video/mp4" else "image/jpeg"
+                val resolver = context.contentResolver
+                val values = ContentValues().apply {
+                    put(if (media.isVideo) MediaStore.Video.Media.DISPLAY_NAME else MediaStore.Images.Media.DISPLAY_NAME, name)
+                    put(if (media.isVideo) MediaStore.Video.Media.MIME_TYPE else MediaStore.Images.Media.MIME_TYPE, mime)
+                    put(if (media.isVideo) MediaStore.Video.Media.DATE_ADDED else MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis() / 1000)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM")
+                        put(MediaStore.MediaColumns.IS_PENDING, 1)
+                    }
+                }
+
+                val collection = if (media.isVideo) MediaStore.Video.Media.EXTERNAL_CONTENT_URI else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                val uri = resolver.insert(collection, values) ?: error("No se pudo crear el archivo en la galería")
+
+                resolver.openOutputStream(uri)?.use { out -> body.byteStream().copyTo(out) }
+                    ?: error("No se pudo escribir el archivo")
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    values.clear()
+                    values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                    resolver.update(uri, values, null, null)
+                }
+
+                name
+            }
+        }
+    }
+
+/**
  * Guarda una copia nueva en la galería del teléfono (DCIM/Camera).
  * El archivo original del servidor nunca se modifica.
  */

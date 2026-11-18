@@ -69,6 +69,21 @@ class SettingsStore(context: Context) {
         get() = prefs.getStringSet(KEY_FAVORITES, emptySet())?.toSet() ?: emptySet()
         set(value) = prefs.edit().putStringSet(KEY_FAVORITES, value).apply()
 
+    /** Carpetas creadas solo en la app: nombre -> rutas de servidor que contiene. */
+    var virtualFolders: Map<String, Set<String>>
+        get() {
+            val raw = prefs.getString(KEY_VIRTUAL_FOLDERS, "") ?: ""
+            if (raw.isBlank()) return emptyMap()
+            return raw.split("|").filter { it.isNotBlank() }.associate { part ->
+                val (name, paths) = part.split("=", limit = 2)
+                name to paths.split(",").filter { it.isNotBlank() }.toSet()
+            }
+        }
+        set(value) {
+            val raw = value.entries.joinToString("|") { "${it.key}=${it.value.joinToString(",")}" }
+            prefs.edit().putString(KEY_VIRTUAL_FOLDERS, raw).apply()
+        }
+
     /** Versión de la limpieza de caché ya aplicada. */
     var cacheVersion: Int
         get() = prefs.getInt(KEY_CACHE_VERSION, 1)
@@ -87,6 +102,7 @@ class SettingsStore(context: Context) {
         const val KEY_COLUMNS = "columns"
         const val KEY_FONT = "font"
         const val KEY_FAVORITES = "favorites"
+        const val KEY_VIRTUAL_FOLDERS = "virtual_folders"
         const val KEY_CACHE_VERSION = "cache_version"
     }
 }

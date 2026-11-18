@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import coil.ImageLoader
 import com.kuze.galeria.data.Media
 
+
 data class Album(val folder: String, val items: List<Media>) {
     val name: String get() = if (folder.isBlank()) "Raíz" else folder
     val cover: Media? get() = items.firstOrNull { !it.isVideo } ?: items.firstOrNull()
@@ -42,7 +43,10 @@ fun FoldersScreen(
     items: List<Media>,
     loader: ImageLoader,
     thumbUrlsFor: (Media) -> List<String>,
-    onOpenFolder: (String) -> Unit
+    virtualFolders: Map<String, Set<String>>,
+    onOpenFolder: (String) -> Unit,
+    onCreateFolder: (String) -> Unit,
+    onMoveToFolder: (Media, String) -> Unit
 ) {
     val albums = remember(items) {
         items.groupBy { it.folder }
@@ -55,10 +59,18 @@ fun FoldersScreen(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 20.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        items(albums, key = { it.folder }) { album ->
+        // Carpetas reales del servidor + carpetas creadas solo en la app.
+        val virtual = virtualFolders.entries.toList()
+        val all = albums + virtual.map { Album(it.key, mediaInFolder(it.key)) }
+
+        items(all, key = { it.folder }) { album ->
             AlbumCard(album, loader, thumbUrlsFor) { onOpenFolder(album.folder) }
         }
     }
+}
+
+private fun mediaInFolder(folderName: String): List<Media> {
+    return items.filter { it.path in (virtualFolders[folderName] ?: emptySet()) }
 }
 
 @Composable

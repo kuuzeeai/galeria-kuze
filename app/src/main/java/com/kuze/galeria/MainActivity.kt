@@ -132,6 +132,10 @@ private fun GaleriaApp(state: AppState) {
                     isFavorite = { state.isFavorite(it) },
                     onToggleFavorite = { state.toggleFavorite(it) },
                     onRefresh = { scope.launch { state.refresh() } },
+                    onDownload = { state.downloadMedia(it) },
+                    onCreateFolder = { /* se pide nombre en el diálogo */ },
+                    onMoveToFolder = { media, folderName -> state.moveToVirtualFolder(media, folderName) },
+                    onFolderCreated = { },
                     onClose = { viewer = null }
                 )
             } else {
@@ -160,7 +164,12 @@ private fun LibraryScreen(
     onToggleTheme: () -> Unit,
     onAlbumChange: (String?) -> Unit,
     onOpen: (List<Media>, Int) -> Unit,
-    onSettings: () -> Unit
+    onSettings: () -> Unit,
+    virtualFolders: Map<String, Set<String>>,
+    onDownload: (Media) -> Unit,
+    onCreateFolder: () -> Unit,
+    onMoveToFolder: (Media, String) -> Unit,
+    onFolderCreated: (String) -> Unit
 ) {
     val scope = rememberCoroutineScope()
     var tab by remember { mutableIntStateOf(0) }
@@ -214,9 +223,11 @@ private fun LibraryScreen(
             )
 
             if (album == null) {
+                val labels = mutableListOf("Todo", "Fotos", "Videos")
+                if (state.favorites.isNotEmpty()) labels += "Favoritos"
                 ChipRow(
-                    labels = listOf("Todo", "Fotos", "Videos", "Favoritos"),
-                    selectedIndex = filter,
+                    labels = labels,
+                    selectedIndex = filter.coerceIn(0, labels.lastIndex),
                     onSelect = { filter = it }
                 )
             }
@@ -290,7 +301,15 @@ private fun LibraryScreen(
                         items = state.items,
                         loader = loader,
                         thumbUrlsFor = { state.api.thumbUrlsFor(it, 480) },
-                        onOpenFolder = { folder -> onAlbumChange(folder) }
+                        virtualFolders = state.virtualFolders,
+                        onOpenFolder = { folder -> onAlbumChange(folder) },
+                        onCreateFolder = { name ->
+                            state.createVirtualFolder(name)
+                            onFolderCreated(name)
+                        },
+                        onMoveToFolder = { media, folderName ->
+                            state.moveToVirtualFolder(media, folderName)
+                        }
                     )
                 }
             }

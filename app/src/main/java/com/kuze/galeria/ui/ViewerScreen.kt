@@ -1,29 +1,26 @@
 package com.kuze.galeria.ui
 
-import android.content.ClipData
-import android.content.ClipboardManager
+import android.app.AlertDialog
 import android.content.Context
+import android.content.DialogInterface
+import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
-import android.widget.FrameLayout
-import androidx.activity.compose.BackHandler
+import android.widget.ArrayAdapter
+import android.widget.TextView
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
@@ -85,6 +82,7 @@ private val FavoriteColor = Color(0xFFFF6B81)
 /**
  * Visor a pantalla completa: zoom en fotos, videos en streaming y una barra
  * inferior con compartir, editar, favorito, eliminar y más opciones.
+ * Los botones usan el estilo Expressive de la app (redondos, colores suaves).
  */
 @Composable
 fun ViewerScreen(
@@ -95,7 +93,11 @@ fun ViewerScreen(
     isFavorite: (Media) -> Boolean,
     onToggleFavorite: (Media) -> Unit,
     onRefresh: () -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onDownload: (Media) -> Unit,
+    onCreateFolder: () -> Unit,
+    onMoveToFolder: (Media, String) -> Unit,
+    onFolderCreated: (String) -> Unit
 ) {
     if (items.isEmpty()) {
         LaunchedEffect(Unit) { onClose() }
@@ -114,7 +116,9 @@ fun ViewerScreen(
     var editing by remember { mutableStateOf<Media?>(null) }
     var details by remember { mutableStateOf<Media?>(null) }
     var confirmingDelete by remember { mutableStateOf(false) }
-    var preparingShare by remember { mutableStateOf(false) }
+    var downloading by remember { mutableStateOf(false) }
+    var creatingFolder by remember { mutableStateOf(false) }
+    var movingToFolder by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(pagerState.currentPage) { zoomed = false }
 
@@ -154,14 +158,19 @@ fun ViewerScreen(
             BottomActionBar(
                 media = current,
                 favorite = isFavorite(current),
-                busy = preparingShare,
-                onShare = {
-                    if (!preparingShare) {
-                        preparingShare = true
+                busy = downloading,
+                onDownload = {
+                    if (!downloading) {
+                        downloading = true
                         scope.launch {
-                            shareMedia(context, api, current)
-                                .onFailure { message = "No se pudo compartir: ${it.message}" }
-                            preparingShare = false
+                            downloadMediaToGallery(context, api, current)
+                                .onSuccess { name ->
+                                    message = "Descargado en la galería: $name"
+                                }
+                                .onFailure {
+                                    message = "No se pudo descargar: ${it.message}"
+                                }
+                            downloading = false
                         }
                     }
                 },
@@ -170,13 +179,22 @@ fun ViewerScreen(
                 onDelete = { confirmingDelete = true },
                 onDetails = { details = current },
                 onCopyLink = {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                    clipboard?.setPrimaryClip(ClipData.newPlainText("Enlace", current.url))
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                    clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("Enlace", current.url))
                     message = "Enlace copiado"
                 },
                 onRefresh = {
                     onRefresh()
                     message = "Actualizando la galería…"
+                },
+                onCreateFolder = { onCreateFolder() },
+                onMoveToFolder = { folderName ->
+                    movingToFolder = folderName
+                    scope.launch {
+                        onMoveToFolder(current, folderName)
+                        message = "Movido a la carpeta '$folderName'"
+                        movingToFolder = null
+                    }
                 },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -240,15 +258,16 @@ fun ViewerScreen(
             }
         )
     }
+
+    val folderTarget = movingToFolder
+    if (folderTarget != null) {
+        // Se muestra el mensaje y se cierra; la lista se actualiza al volver a la galería.
+        Unit
+    }
 }
 
 @Composable
-private fun TopBar(
-    title: String,
-    position: String,
-    onClose: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+private fun TopBar(title: String, position: String, onClose: () -> Unit, modifier: Modifier = Modifier) {
     Surface(
         shape = RoundedCornerShape(28.dp),
         color = Color.Black.copy(alpha = 0.45f),
@@ -283,22 +302,26 @@ private fun TopBar(
 /**
  * Barra flotante con las acciones de la foto, en el orden pedido:
  * compartir, editar, favorito, eliminar y más opciones.
+ * Estilo Expressive: botones redondos con colores suaves, como el editor.
  */
 @Composable
 private fun BottomActionBar(
     media: Media,
     favorite: Boolean,
     busy: Boolean,
-    onShare: () -> Unit,
+    onDownload: () -> Unit,
     onEdit: () -> Unit,
     onFavorite: () -> Unit,
     onDelete: () -> Unit,
     onDetails: () -> Unit,
     onCopyLink: () -> Unit,
     onRefresh: () -> Unit,
+    onCreateFolder: () -> Unit,
+    onMoveToFolder: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var menu by remember { mutableStateOf(false) }
+    var folders by remember { mutableStateOf<List<String>>(emptyList()) }
 
     Surface(
         shape = RoundedCornerShape(34.dp),
@@ -306,105 +329,163 @@ private fun BottomActionBar(
         contentColor = Color.White,
         modifier = modifier
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
         ) {
-            ActionIcon(
-                icon = Icons.Filled.Share,
-                label = "Compartir",
-                onClick = onShare,
-                busy = busy
-            )
-
-            if (!media.isVideo) {
-                ActionIcon(
-                    icon = Icons.Filled.Edit,
-                    label = "Editar",
-                    onClick = onEdit
+            // Fila principal: compartir, editar, favorito, eliminar.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ExpressiveAction(
+                    icon = Icons.Filled.Share,
+                    label = "Compartir",
+                    onClick = onDownload
                 )
+
+                if (!media.isVideo) {
+                    ExpressiveAction(
+                        icon = Icons.Filled.Edit,
+                        label = "Editar",
+                        onClick = onEdit
+                    )
+                }
+
+                ExpressiveAction(
+                    icon = if (favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    label = if (favorite) "Quitar favorito" else "Favorito",
+                    tint = if (favorite) FavoriteColor else Color.White,
+                    onClick = onFavorite
+                )
+
+                if (!media.isVideo) {
+                    ExpressiveAction(
+                        icon = Icons.Filled.DeleteOutline,
+                        label = "Eliminar",
+                        tint = Color.White.copy(alpha = 0.45f),
+                        onClick = onDelete
+                    )
+                }
             }
 
-            ActionIcon(
-                icon = if (favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                label = if (favorite) "Quitar de favoritos" else "Añadir a favoritos",
-                tint = if (favorite) FavoriteColor else Color.White,
-                onClick = onFavorite
-            )
+            Spacer(Modifier.height(6.dp))
 
-            if (!media.isVideo) {
-                ActionIcon(
-                    icon = Icons.Filled.DeleteOutline,
-                    label = "Eliminar (próximamente)",
-                    tint = Color.White.copy(alpha = 0.45f),
-                    onClick = onDelete
-                )
-            }
+            // Fila secundaria: más opciones con menú desplegable.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box {
+                    ExpressiveAction(
+                        icon = Icons.Filled.MoreVert,
+                        label = "Más",
+                        onClick = { menu = true }
+                    )
 
-            Box {
-                ActionIcon(
-                    icon = Icons.Filled.MoreVert,
-                    label = "Más opciones",
-                    onClick = { menu = true }
-                )
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Descargar imagen") },
+                            leadingIcon = { Icon(Icons.Filled.Share, contentDescription = null) },
+                            enabled = !busy,
+                            onClick = {
+                                menu = false
+                                onDownload()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Detalles") },
+                            leadingIcon = { Icon(Icons.Filled.Info, contentDescription = null) },
+                            onClick = {
+                                menu = false
+                                onDetails()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Copiar enlace") },
+                            leadingIcon = { Icon(Icons.Filled.Link, contentDescription = null) },
+                            onClick = {
+                                menu = false
+                                onCopyLink()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Recargar galería") },
+                            leadingIcon = { Icon(Icons.Filled.Refresh, contentDescription = null) },
+                            onClick = {
+                                menu = false
+                                onRefresh()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Crear carpeta") },
+                            leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
+                            onClick = {
+                                menu = false
+                                onCreateFolder()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Mover a carpeta") },
+                            leadingIcon = { Icon(Icons.Filled.DeleteOutline, contentDescription = null) },
+                            enabled = folders.isNotEmpty(),
+                            onClick = {
+                                menu = false
+                                // Se selecciona carpeta en el menú inferior.
+                            }
+                        )
+                    }
+                }
 
-                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(
-                        text = { Text("Detalles") },
-                        leadingIcon = { Icon(Icons.Filled.Info, contentDescription = null) },
-                        onClick = {
-                            menu = false
-                            onDetails()
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Copiar enlace") },
-                        leadingIcon = { Icon(Icons.Filled.Link, contentDescription = null) },
-                        onClick = {
-                            menu = false
-                            onCopyLink()
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Recargar galería") },
-                        leadingIcon = { Icon(Icons.Filled.Refresh, contentDescription = null) },
-                        onClick = {
-                            menu = false
-                            onRefresh()
-                        }
-                    )
+                // Selector rápido de carpeta para mover (si hay carpetas creadas).
+                if (folders.isNotEmpty()) {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color.White.copy(alpha = 0.12f),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = "Mover a: ${folders.lastOrNull() ?: ""}",
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
                 }
             }
         }
     }
 }
-
 @Composable
-private fun ActionIcon(
+private fun ExpressiveAction(
     icon: ImageVector,
     label: String,
     onClick: () -> Unit,
-    tint: Color = Color.White,
-    busy: Boolean = false
+    tint: Color = Color.White
 ) {
-    IconButton(onClick = onClick, modifier = Modifier.size(46.dp)) {
-        if (busy) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(20.dp),
-                strokeWidth = 2.dp,
-                color = Color.White
-            )
-        } else {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.size(56.dp)
+    ) {
+        IconButton(onClick = onClick, modifier = Modifier.size(42.dp)) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
                 tint = tint,
-                modifier = Modifier.size(23.dp)
+                modifier = Modifier.size(22.dp)
             )
         }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.White,
+            maxLines = 1,
+            modifier = Modifier.padding(top = 2.dp)
+        )
     }
 }
+
+private fun dp(text: String): androidx.compose.ui.unit.Dp = with(androidx.compose.ui.unit.Dp) { }
 
 @Composable
 private fun DetailsDialog(media: Media, onDismiss: () -> Unit) {

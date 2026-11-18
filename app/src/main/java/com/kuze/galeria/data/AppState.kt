@@ -56,6 +56,9 @@ class AppState(context: Context) {
     var favorites by mutableStateOf(settings.favorites)
         private set
 
+    var virtualFolders by mutableStateOf(settings.virtualFolders)
+        private set
+
     fun isFavorite(media: Media): Boolean = media.path in favorites
 
     fun toggleFavorite(media: Media) {
@@ -67,6 +70,42 @@ class AppState(context: Context) {
         favorites = next
         settings.favorites = next
     }
+
+    fun createVirtualFolder(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty() || trimmed in virtualFolders.keys) return
+        val next = virtualFolders.toMutableMap()
+        next[trimmed] = emptySet()
+        virtualFolders = next
+        settings.virtualFolders = next
+    }
+
+    fun moveToVirtualFolder(media: Media, folderName: String) {
+        val next = virtualFolders.toMutableMap()
+        // Se "mueve": sale de todas las carpetas virtuales y entra en la elegida.
+        next.values.forEach { it.remove(media.path) }
+        next[folderName] = (next[folderName] ?: emptySet()) + media.path
+        virtualFolders = next
+        settings.virtualFolders = next
+    }
+
+    fun removeFromVirtualFolders(media: Media) {
+        val next = virtualFolders.toMutableMap()
+        var changed = false
+        next.values.forEach { if (it.remove(media.path)) changed = true }
+        if (changed) {
+            virtualFolders = next
+            settings.virtualFolders = next
+        }
+    }
+
+    fun mediaInVirtualFolder(folderName: String): List<Media> {
+        val paths = virtualFolders[folderName] ?: return emptyList()
+        return items.filter { it.path in paths }
+    }
+
+    suspend fun downloadMedia(media: Media): Result<String> =
+        downloadMediaToGallery(context, api, media)
 
     fun toggleTheme() {
         darkTheme = !darkTheme
