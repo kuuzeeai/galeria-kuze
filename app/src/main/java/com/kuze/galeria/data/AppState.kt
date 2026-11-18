@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.sync.Mutex
+import java.io.File
 import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
@@ -22,6 +23,8 @@ class AppState(context: Context) {
     private val repository = MediaRepository(api)
     private val cache = IndexCache(this.context)
     private val refreshMutex = Mutex()
+
+    private var started = false
 
     var items by mutableStateOf<List<Media>>(emptyList())
         private set
@@ -41,11 +44,45 @@ class AppState(context: Context) {
     var darkTheme by mutableStateOf(settings.darkTheme)
         private set
 
-    private var started = false
+    var palette by mutableStateOf(settings.palette)
+        private set
+
+    var columns by mutableStateOf(settings.columns)
+        private set
+
+    var font by mutableStateOf(settings.font)
+        private set
 
     fun toggleTheme() {
         darkTheme = !darkTheme
         settings.darkTheme = darkTheme
+    }
+
+    fun setPalette(id: String) {
+        palette = id
+        settings.palette = id
+    }
+
+    fun setColumns(value: Int) {
+        columns = value.coerceIn(2, 4)
+        settings.columns = columns
+    }
+
+    fun setFont(id: String) {
+        font = id
+        settings.font = id
+    }
+
+    /**
+     * Borra una sola vez la caché vieja, donde quedaban guardadas las fotos
+     * completas abiertas en el visor. Ahora el visor no escribe en el disco.
+     */
+    fun prepareStorage() {
+        if (settings.cacheVersion >= CACHE_VERSION) return
+        runCatching {
+            File(context.cacheDir, "img").deleteRecursively()
+        }
+        settings.cacheVersion = CACHE_VERSION
     }
 
     /** Primer arranque: muestra lo guardado y actualiza si está viejo. */
@@ -99,5 +136,6 @@ class AppState(context: Context) {
 
     private companion object {
         const val STALE_MS = 10 * 60 * 1000L
+        const val CACHE_VERSION = 2
     }
 }

@@ -5,11 +5,12 @@ desde el mismo Wi-Fi de casa. Nada se mueve ni se borra en el servidor: la app s
 
 ## Qué hace
 
-- Pestaña **Fotos**: cuadrícula de 3 por fila, agrupada por día.
+- Pestaña **Fotos**: cuadrícula de 2, 3 o 4 por fila (se elige en Ajustes), agrupada por día.
 - Pestaña **Carpetas**: cada carpeta del servidor como un álbum.
 - Miniaturas livianas generadas en el servidor (puerto 8081); las fotos originales solo se piden al abrirlas.
-- Miniaturas en caché en el teléfono, hasta 500 MB.
+- Miniaturas en caché en el teléfono, hasta 500 MB. Las fotos completas no se guardan: el visor las ve en línea.
 - Visor con zoom (doble toque), deslizar a la anterior/siguiente y videos en streaming.
+- **Ajustes de diseño**: paleta de colores, fotos por fila (con el peso aproximado) y fuente.
 - Deslizar hacia abajo para refrescar.
 - Ajustes guardados cifrados (URL, usuario y clave).
 
@@ -20,6 +21,7 @@ desde el mismo Wi-Fi de casa. Nada se mueve ni se borra en el servidor: la app s
 3. Tocar **Probar conexión** y luego **Guardar y ver fotos**.
 
 Si el celular viejo cambia de IP, se cambia solo en **Ajustes** dentro de la app.
+En la misma pantalla se puede cambiar la paleta, las fotos por fila y la fuente.
 
 ## Cómo se compila
 

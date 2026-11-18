@@ -145,6 +145,9 @@ private fun ZoomableImage(
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(media.url)
+                // Se decodifica a un tamaño razonable para poder hacer zoom sin
+                // llenar la memoria; el archivo completo se descarta al salir.
+                .size(2048)
                 .crossfade(true)
                 .build(),
             imageLoader = loader,

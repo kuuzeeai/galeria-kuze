@@ -41,7 +41,7 @@ data class Album(val folder: String, val items: List<Media>) {
 fun FoldersScreen(
     items: List<Media>,
     loader: ImageLoader,
-    thumbUrlFor: (Media) -> String?,
+    thumbUrlsFor: (Media) -> List<String>,
     onOpenFolder: (String) -> Unit
 ) {
     val albums = remember(items) {
@@ -56,7 +56,7 @@ fun FoldersScreen(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         items(albums, key = { it.folder }) { album ->
-            AlbumCard(album, loader, thumbUrlFor) { onOpenFolder(album.folder) }
+            AlbumCard(album, loader, thumbUrlsFor) { onOpenFolder(album.folder) }
         }
     }
 }
@@ -65,7 +65,7 @@ fun FoldersScreen(
 private fun AlbumCard(
     album: Album,
     loader: ImageLoader,
-    thumbUrlFor: (Media) -> String?,
+    thumbUrlsFor: (Media) -> List<String>,
     onClick: () -> Unit
 ) {
     Surface(
@@ -111,8 +111,8 @@ private fun AlbumCard(
                     else -> ThumbImage(
                         media = cover,
                         loader = loader,
-                        thumbUrl = thumbUrlFor(cover),
-                        sizePx = 220,
+                        thumbUrls = thumbUrlsFor(cover),
+                        sizePx = 240,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize()
                     )

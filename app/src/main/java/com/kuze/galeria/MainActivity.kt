@@ -50,7 +50,9 @@ import com.kuze.galeria.ui.GaleriaTheme
 import com.kuze.galeria.ui.PhotosScreen
 import com.kuze.galeria.ui.SettingsScreen
 import com.kuze.galeria.ui.ViewerScreen
+import com.kuze.galeria.ui.thumbWidthFor
 import com.kuze.galeria.ui.buildImageLoader
+import com.kuze.galeria.ui.buildViewerLoader
 import kotlinx.coroutines.launch
 
 private enum class Screen { Library, Settings }
@@ -67,7 +69,11 @@ class MainActivity : ComponentActivity() {
                 controller.isAppearanceLightStatusBars = !state.darkTheme
                 controller.isAppearanceLightNavigationBars = !state.darkTheme
             }
-            GaleriaTheme(darkTheme = state.darkTheme) {
+            GaleriaTheme(
+                darkTheme = state.darkTheme,
+                palette = state.palette,
+                font = state.font
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -83,6 +89,7 @@ class MainActivity : ComponentActivity() {
 private fun GaleriaApp(state: AppState) {
     val scope = rememberCoroutineScope()
     val loader = remember { buildImageLoader(state.context, state.api.client) }
+    val viewerLoader = remember { buildViewerLoader(state.context, state.api.client) }
 
     var screen by remember {
         mutableStateOf(if (state.settings.isConfigured) Screen.Library else Screen.Settings)
@@ -90,13 +97,23 @@ private fun GaleriaApp(state: AppState) {
     var viewer by remember { mutableStateOf<ViewerTarget?>(null) }
     var album by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(Unit) { state.loadInitial() }
+    LaunchedEffect(Unit) {
+        state.prepareStorage()
+        state.loadInitial()
+    }
 
     when (screen) {
         Screen.Settings -> SettingsScreen(
             settings = state.settings,
             api = state.api,
             firstRun = !state.settings.isConfigured,
+            palette = state.palette,
+            columns = state.columns,
+            font = state.font,
+            itemCount = state.items.size,
+            onPalette = { state.setPalette(it) },
+            onColumns = { state.setColumns(it) },
+            onFont = { state.setFont(it) },
             onSaved = {
                 screen = Screen.Library
                 scope.launch { state.refresh() }
@@ -110,7 +127,7 @@ private fun GaleriaApp(state: AppState) {
                 ViewerScreen(
                     items = target.items,
                     startIndex = target.index,
-                    loader = loader,
+                    loader = viewerLoader,
                     api = state.api,
                     onClose = { viewer = null }
                 )
@@ -250,14 +267,16 @@ private fun LibraryScreen(
                     album != null -> PhotosScreen(
                         items = shown,
                         loader = loader,
-                        thumbUrlFor = { state.api.thumbUrlFor(it) },
+                        columns = state.columns,
+                        thumbUrlsFor = { state.api.thumbUrlsFor(it, thumbWidthFor(state.columns)) },
                         onOpen = { index -> onOpen(shown, index) }
                     )
 
                     tab == 0 -> PhotosScreen(
                         items = shown,
                         loader = loader,
-                        thumbUrlFor = { state.api.thumbUrlFor(it) },
+                        columns = state.columns,
+                        thumbUrlsFor = { state.api.thumbUrlsFor(it, thumbWidthFor(state.columns)) },
                         showHero = true,
                         lastSync = state.lastSync,
                         onOpen = { index -> onOpen(shown, index) }
@@ -266,7 +285,7 @@ private fun LibraryScreen(
                     else -> FoldersScreen(
                         items = state.items,
                         loader = loader,
-                        thumbUrlFor = { state.api.thumbUrlFor(it) },
+                        thumbUrlsFor = { state.api.thumbUrlsFor(it, 480) },
                         onOpenFolder = { folder -> onAlbumChange(folder) }
                     )
                 }

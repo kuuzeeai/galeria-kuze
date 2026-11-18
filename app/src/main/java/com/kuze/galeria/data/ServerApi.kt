@@ -45,16 +45,26 @@ class ServerApi(private val settings: SettingsStore) {
 
     /**
      * URL de la miniatura de un archivo: mismo servidor, puerto 8081,
-     * misma carpeta y mismo nombre con extensión .jpg.
+     * carpeta `s<ancho>` (s480, s320 o s240) y mismo nombre con extensión .jpg.
      */
-    fun thumbUrlFor(media: Media): String? {
+    fun thumbUrlFor(media: Media, width: Int): String? {
         val base = baseUrl.toHttpUrlOrNull() ?: return null
         val thumbBase = base.newBuilder().port(THUMB_PORT).build()
         val builder = thumbBase.newBuilder()
+        builder.addPathSegment("s$width")
         media.folder.split('/').filter { it.isNotBlank() }.forEach { builder.addPathSegment(it) }
         builder.addPathSegment(media.name.substringBeforeLast('.', media.name) + ".jpg")
         return builder.build().toString()
     }
+
+    /**
+     * Miniaturas a probar en orden: la del ancho pedido y, si en el servidor
+     * todavía no existe, la de 480 px. Si ninguna existe, la app usa la original.
+     */
+    fun thumbUrlsFor(media: Media, width: Int): List<String> = listOfNotNull(
+        thumbUrlFor(media, width),
+        if (width != 480) thumbUrlFor(media, 480) else null
+    )
 
     /** Lee una carpeta y devuelve sus subcarpetas y sus archivos. */
     suspend fun list(path: String): DirListing = withContext(Dispatchers.IO) {

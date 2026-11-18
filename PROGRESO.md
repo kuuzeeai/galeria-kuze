@@ -54,14 +54,20 @@ Pendiente: **etapa 6 (borrar)**, ver sección 7.
 Objetivo: no bajar la foto completa para navegar.
 
 - Generador: `~/bin/kuze-thumbs.sh` en el celular viejo.
-  - Lee `/storage/emulated/0/Kuz nj`, escribe en `~/.thumbs` con la misma estructura de carpetas
-    y extensión `.jpg` (`Camera/IMG_1.jpg` → `~/.thumbs/Camera/IMG_1.jpg`).
-  - 300 px de ancho, calidad ~70: **~25–35 KB por miniatura**.
-  - Se salta archivos ya generados y borra miniaturas de fotos eliminadas.
+  - Lee `/storage/emulated/0/Kuz nj` y escribe en `~/.thumbs/s480`, `~/.thumbs/s320` y
+    `~/.thumbs/s240`, con la misma estructura de carpetas y extensión `.jpg`
+    (`Camera/IMG_1.jpg` → `~/.thumbs/s320/Camera/IMG_1.jpg`).
+  - Primero genera la de 480 px desde la foto y luego las de 320 y 240 desde esa.
+  - Peso aproximado por miniatura: **480 px ≈ 55 KB · 320 px ≈ 30 KB · 240 px ≈ 16 KB**.
+  - Se salta archivos ya generados, borra miniaturas de fotos eliminadas y borra el formato
+    viejo de 300 px que quedaba suelto en la raíz de `~/.thumbs`.
   - Con `--loop` repite cada 15 minutos (sesión tmux `thumbs-gen`).
 - Servidor: miniserve en el puerto **8081** sirviendo `~/.thumbs`, con la misma autenticación.
-- La app pide `http://IP:8081/<carpeta>/<nombre>.jpg`; si esa miniatura no existe (404) cae
-  automáticamente a la foto original. Al abrir una foto en el visor siempre se pide la original.
+- La app elige el tamaño según las columnas: 2 por fila → `s480`, 3 → `s320`, 4 → `s240`.
+  Pide `http://IP:8081/s<ancho>/<carpeta>/<nombre>.jpg`; si no existe (404) prueba con 480 px
+  y, si tampoco, usa la foto original. Al abrir una foto en el visor siempre se pide la original.
+- Al cambiar de columnas cambia la URL, así que se descarga solo la miniatura de ese tamaño
+  (cada tamaño queda en caché por separado).
 - Dependencia instalada en el viejo: `ffmpeg` (paquete de Termux) para redimensionar.
 
 ## 5. Estructura de la app
@@ -77,7 +83,8 @@ app/src/main/java/com/kuze/galeria/
 │  ├─ IndexCache.kt           guarda la lista en un archivo (abre rápido / sin conexión)
 │  └─ AppState.kt             estado: items, loading, error, progreso, tema
 └─ ui/
-   ├─ Theme.kt                colores claro/oscuro, formas y tipografía Expressive
+   ├─ Theme.kt                aplica paleta, fuente y formas redondeadas
+   ├─ StyleOptions.kt         paletas, fuentes, tamaño de miniaturas por columnas
    ├─ Expressive.kt           botones redondos, chips, cabecera, barra flotante, hero, mensajes
    ├─ PhotosScreen.kt         cuadrícula 3 columnas, ThumbImage con fallback, agrupación por día
    ├─ FoldersScreen.kt        carpetas como tarjetas de álbum
@@ -89,9 +96,23 @@ app/src/main/java/com/kuze/galeria/
 Notas de comportamiento:
 
 - La lista completa de archivos se lee al refrescar y queda en memoria + `filesDir/media-index.tsv`.
-- Caché de miniaturas en `cacheDir/img`, máximo 500 MB.
+- Caché de miniaturas en `cacheDir/img`, máximo 500 MB (solo miniaturas).
+- El visor usa un `ImageLoader` aparte con `diskCache(null)`: la foto completa se decodifica a
+  2048 px en memoria y nunca se escribe en el almacenamiento. La primera vez que se abre esta
+  versión se borra la caché vieja (donde sí quedaban fotos completas).
 - Si cambia la URL del servidor, el índice guardado se descarta solo (guarda la URL en su cabecera).
 - Errores de red se muestran como "Conéctate al Wi-Fi de casa"; 401 como usuario/clave incorrectos.
+- Los videos se reproducen con ExoPlayer + `OkHttpDataSource` sin caché: streaming puro.
+
+### Ajustes de diseño (`ui/StyleOptions.kt`)
+
+- Paletas: menta (por defecto), océano, atardecer, lavanda, bosque y arena. El modo oscuro se
+  deriva de cada paleta con `lerp`, así todas se ven coherentes.
+- Columnas: 2 (480 px), 3 (320 px) y 4 (240 px). La pantalla de Ajustes muestra ≈KB por foto y
+  el total aproximado de la caché para la cantidad de archivos actual.
+- Fuentes: predeterminada, con serifas, monoespaciada, manuscrita y "grande y clara" (1.14×).
+- Todo se guarda en `SettingsStore` (`palette`, `columns`, `font`) y se aplica al instante porque
+  `AppState` expone esos valores como estado de Compose.
 
 ## 6. Cómo compilar e instalar
 

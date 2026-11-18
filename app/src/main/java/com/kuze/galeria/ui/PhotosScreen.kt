@@ -25,6 +25,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -44,21 +45,23 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** Cuadrícula de fotos agrupada por día: 3 por fila, con miniaturas livianas. */
+/** Cuadrícula de fotos agrupada por día, con 2, 3 o 4 por fila. */
 @Composable
 fun PhotosScreen(
     items: List<Media>,
     loader: ImageLoader,
-    thumbUrlFor: (Media) -> String?,
+    columns: Int,
+    thumbUrlsFor: (Media) -> List<String>,
     showHero: Boolean = false,
     lastSync: Long = 0L,
     onOpen: (index: Int) -> Unit
 ) {
     val groups = remember(items) { groupByDay(items) }
     val folderCount = remember(items) { items.map { it.folder }.distinct().size }
+    val thumbWidth = remember(columns) { thumbWidthFor(columns) }
 
     LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
+        columns = GridCells.Fixed(columns.coerceIn(2, 4)),
         contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 4.dp, bottom = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -100,7 +103,8 @@ fun PhotosScreen(
                 ThumbCell(
                     media = entry.media,
                     loader = loader,
-                    thumbUrl = thumbUrlFor(entry.media),
+                    thumbUrls = thumbUrlsFor(entry.media),
+                    sizePx = thumbWidth,
                     onClick = { onOpen(entry.index) }
                 )
             }
@@ -112,7 +116,8 @@ fun PhotosScreen(
 fun ThumbCell(
     media: Media,
     loader: ImageLoader,
-    thumbUrl: String?,
+    thumbUrls: List<String>,
+    sizePx: Int,
     onClick: () -> Unit
 ) {
     Box(
@@ -146,8 +151,8 @@ fun ThumbCell(
             ThumbImage(
                 media = media,
                 loader = loader,
-                thumbUrl = thumbUrl,
-                sizePx = 300,
+                thumbUrls = thumbUrls,
+                sizePx = sizePx,
                 contentDescription = media.name,
                 modifier = Modifier.fillMaxSize()
             )
@@ -156,21 +161,21 @@ fun ThumbCell(
 }
 
 /**
- * Miniatura en línea: usa la copia pequeña del servidor (puerto 8081) y,
- * si no existe, cae automáticamente a la foto original.
+ * Miniatura en línea: prueba las copias pequeñas del servidor (puerto 8081) y,
+ * si ninguna existe, cae automáticamente a la foto original.
  */
 @Composable
 fun ThumbImage(
     media: Media,
     loader: ImageLoader,
-    thumbUrl: String?,
+    thumbUrls: List<String>,
     sizePx: Int,
     contentDescription: String?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop
 ) {
-    var useOriginal by remember(media.id, thumbUrl) { mutableStateOf(false) }
-    val data = if (useOriginal || thumbUrl == null) media.url else thumbUrl
+    var attempt by remember(media.id, thumbUrls) { mutableIntStateOf(0) }
+    val data = thumbUrls.getOrNull(attempt) ?: media.url
 
     AsyncImage(
         model = ImageRequest.Builder(LocalContext.current)
@@ -182,7 +187,7 @@ fun ThumbImage(
         contentDescription = contentDescription,
         contentScale = contentScale,
         onError = {
-            if (!useOriginal && thumbUrl != null) useOriginal = true
+            if (attempt < thumbUrls.size) attempt += 1
         },
         modifier = modifier
     )

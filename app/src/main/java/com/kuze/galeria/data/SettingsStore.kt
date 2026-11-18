@@ -49,6 +49,26 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(KEY_DARK, false)
         set(value) = prefs.edit().putBoolean(KEY_DARK, value).apply()
 
+    /** Paleta de colores elegida: menta, oceano, atardecer, lavanda, bosque o arena. */
+    var palette: String
+        get() = prefs.getString(KEY_PALETTE, "menta") ?: "menta"
+        set(value) = prefs.edit().putString(KEY_PALETTE, value).apply()
+
+    /** Fotos por fila en la cuadrícula: 2, 3 o 4. */
+    var columns: Int
+        get() = prefs.getInt(KEY_COLUMNS, 3).coerceIn(2, 4)
+        set(value) = prefs.edit().putInt(KEY_COLUMNS, value.coerceIn(2, 4)).apply()
+
+    /** Fuente de la app: sans, serif, mono, cursive o grande. */
+    var font: String
+        get() = prefs.getString(KEY_FONT, "sans") ?: "sans"
+        set(value) = prefs.edit().putString(KEY_FONT, value).apply()
+
+    /** Versión de la limpieza de caché ya aplicada. */
+    var cacheVersion: Int
+        get() = prefs.getInt(KEY_CACHE_VERSION, 1)
+        set(value) = prefs.edit().putInt(KEY_CACHE_VERSION, value).apply()
+
     val isConfigured: Boolean
         get() = user.isNotBlank() && pass.isNotBlank() && baseUrl.isNotBlank()
 
@@ -58,5 +78,9 @@ class SettingsStore(context: Context) {
         const val KEY_PASS = "pass"
         const val KEY_CACHED_AT = "cached_at"
         const val KEY_DARK = "dark_theme"
+        const val KEY_PALETTE = "palette"
+        const val KEY_COLUMNS = "columns"
+        const val KEY_FONT = "font"
+        const val KEY_CACHE_VERSION = "cache_version"
     }
 }

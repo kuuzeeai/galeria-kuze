@@ -1,6 +1,10 @@
 package com.kuze.galeria.ui
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -33,6 +38,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -40,6 +46,7 @@ import com.kuze.galeria.data.DEFAULT_URL
 import com.kuze.galeria.data.ServerApi
 import com.kuze.galeria.data.SettingsStore
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 private sealed interface TestState {
     data object Running : TestState
@@ -52,6 +59,13 @@ fun SettingsScreen(
     settings: SettingsStore,
     api: ServerApi,
     firstRun: Boolean,
+    palette: String,
+    columns: Int,
+    font: String,
+    itemCount: Int,
+    onPalette: (String) -> Unit,
+    onColumns: (Int) -> Unit,
+    onFont: (String) -> Unit,
     onSaved: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -196,10 +210,176 @@ fun SettingsScreen(
             }
 
             if (!firstRun) {
+                DesignSection(
+                    palette = palette,
+                    columns = columns,
+                    font = font,
+                    itemCount = itemCount,
+                    onPalette = onPalette,
+                    onColumns = onColumns,
+                    onFont = onFont
+                )
+
                 TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
                     Text("Cancelar")
                 }
             }
         }
     }
+}
+
+@Composable
+private fun DesignSection(
+    palette: String,
+    columns: Int,
+    font: String,
+    itemCount: Int,
+    onPalette: (String) -> Unit,
+    onColumns: (Int) -> Unit,
+    onFont: (String) -> Unit
+) {
+    Text(
+        text = "Diseño",
+        style = MaterialTheme.typography.headlineMedium,
+        modifier = Modifier.padding(top = 14.dp)
+    )
+    Text(
+        text = "Los cambios se ven al instante.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
+    DesignLabel("Paleta de colores")
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        paletteOptions.forEach { option ->
+            val selected = option.id == palette
+            Surface(
+                onClick = { onPalette(option.id) },
+                shape = RoundedCornerShape(20.dp),
+                color = if (selected) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                },
+                contentColor = if (selected) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    Box(
+                        Modifier
+                            .size(15.dp)
+                            .clip(CircleShape)
+                            .background(option.swatch)
+                    )
+                    Text(option.label, style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        }
+    }
+
+    DesignLabel("Fotos por fila")
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        listOf(2, 3, 4).forEach { option ->
+            val selected = option == columns
+            Surface(
+                onClick = { onColumns(option) },
+                shape = RoundedCornerShape(20.dp),
+                color = if (selected) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                },
+                contentColor = if (selected) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+                modifier = Modifier.weight(1f)
+            ) {
+                Column(
+                    modifier = Modifier.padding(vertical = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("$option por fila", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        "≈${approxKbFor(option)} KB",
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+        }
+    }
+
+    val totalMb = (approxKbFor(columns).toLong() * itemCount / 1024.0).roundToInt()
+    Text(
+        text = "Con $columns por fila cada miniatura pesa ≈${approxKbFor(columns)} KB" +
+            if (itemCount > 0) " y la caché completa ≈$totalMb MB para $itemCount archivos." else ".",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    Text(
+        text = "Al cambiar de filas se descarga solo la miniatura de ese tamaño.\n" +
+            "En el teléfono solo se guardan miniaturas: las fotos completas se ven sin ocupar espacio.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
+    DesignLabel("Fuente")
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        fontOptions.forEach { option ->
+            val selected = option.id == font
+            Surface(
+                onClick = { onFont(option.id) },
+                shape = RoundedCornerShape(20.dp),
+                color = if (selected) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                },
+                contentColor = if (selected) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+            ) {
+                Text(
+                    text = option.label,
+                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = option.family()),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DesignLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleSmall,
+        modifier = Modifier.padding(top = 6.dp)
+    )
 }
