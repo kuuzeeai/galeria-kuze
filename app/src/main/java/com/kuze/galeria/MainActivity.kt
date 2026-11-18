@@ -169,7 +169,10 @@ private fun LibraryScreen(
         bottomBar = {
             ExpressiveBottomBar(
                 selectedIndex = tab,
-                onSelect = { tab = it },
+                onSelect = { index ->
+                    tab = index
+                    if (index == 1 && album != null) onAlbumChange(null)
+                },
                 onRefresh = { scope.launch { state.refresh() } },
                 refreshing = state.loading
             )
