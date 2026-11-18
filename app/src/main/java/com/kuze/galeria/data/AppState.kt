@@ -53,6 +53,21 @@ class AppState(context: Context) {
     var font by mutableStateOf(settings.font)
         private set
 
+    var favorites by mutableStateOf(settings.favorites)
+        private set
+
+    fun isFavorite(media: Media): Boolean = media.path in favorites
+
+    fun toggleFavorite(media: Media) {
+        val next = if (media.path in favorites) {
+            favorites - media.path
+        } else {
+            favorites + media.path
+        }
+        favorites = next
+        settings.favorites = next
+    }
+
     fun toggleTheme() {
         darkTheme = !darkTheme
         settings.darkTheme = darkTheme

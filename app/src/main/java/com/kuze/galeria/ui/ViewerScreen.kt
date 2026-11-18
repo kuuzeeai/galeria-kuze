@@ -1,5 +1,8 @@
 package com.kuze.galeria.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
@@ -7,33 +10,53 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -50,14 +73,28 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.kuze.galeria.data.Media
 import com.kuze.galeria.data.ServerApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
-/** Visor a pantalla completa: zoom en fotos y videos en streaming. */
+private val FavoriteColor = Color(0xFFFF6B81)
+
+/**
+ * Visor a pantalla completa: zoom en fotos, videos en streaming y una barra
+ * inferior con compartir, editar, favorito, eliminar y más opciones.
+ */
 @Composable
 fun ViewerScreen(
     items: List<Media>,
     startIndex: Int,
     loader: ImageLoader,
     api: ServerApi,
+    isFavorite: (Media) -> Boolean,
+    onToggleFavorite: (Media) -> Unit,
+    onRefresh: () -> Unit,
     onClose: () -> Unit
 ) {
     if (items.isEmpty()) {
@@ -65,13 +102,28 @@ fun ViewerScreen(
         return
     }
 
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     val pagerState = rememberPagerState(
         initialPage = startIndex.coerceIn(0, items.lastIndex),
         pageCount = { items.size }
     )
     var zoomed by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    var editing by remember { mutableStateOf<Media?>(null) }
+    var details by remember { mutableStateOf<Media?>(null) }
+    var confirmingDelete by remember { mutableStateOf(false) }
+    var preparingShare by remember { mutableStateOf(false) }
 
     LaunchedEffect(pagerState.currentPage) { zoomed = false }
+
+    LaunchedEffect(message) {
+        if (message != null) {
+            delay(3600)
+            message = null
+        }
+    }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         HorizontalPager(
@@ -87,41 +139,297 @@ fun ViewerScreen(
             }
         }
 
-        Surface(
-            shape = RoundedCornerShape(28.dp),
-            color = Color.Black.copy(alpha = 0.45f),
-            contentColor = Color.White,
+        TopBar(
+            title = items.getOrNull(pagerState.currentPage)?.name.orEmpty(),
+            position = "${pagerState.currentPage + 1}/${items.size}",
+            onClose = onClose,
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(12.dp)
                 .fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
+        )
+
+        val current = items.getOrNull(pagerState.currentPage)
+        if (current != null) {
+            BottomActionBar(
+                media = current,
+                favorite = isFavorite(current),
+                busy = preparingShare,
+                onShare = {
+                    if (!preparingShare) {
+                        preparingShare = true
+                        scope.launch {
+                            shareMedia(context, api, current)
+                                .onFailure { message = "No se pudo compartir: ${it.message}" }
+                            preparingShare = false
+                        }
+                    }
+                },
+                onEdit = { editing = current },
+                onFavorite = { onToggleFavorite(current) },
+                onDelete = { confirmingDelete = true },
+                onDetails = { details = current },
+                onCopyLink = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                    clipboard?.setPrimaryClip(ClipData.newPlainText("Enlace", current.url))
+                    message = "Enlace copiado"
+                },
+                onRefresh = {
+                    onRefresh()
+                    message = "Actualizando la galería…"
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 14.dp)
+            )
+        }
+
+        val notice = message
+        if (notice != null) {
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = Color.Black.copy(alpha = 0.75f),
+                contentColor = Color.White,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 86.dp, start = 24.dp, end = 24.dp)
             ) {
-                IconButton(onClick = onClose) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
-                }
                 Text(
-                    text = items.getOrNull(pagerState.currentPage)?.name.orEmpty(),
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f).padding(start = 4.dp, end = 12.dp)
-                )
-                Text(
-                    text = "${pagerState.currentPage + 1}/${items.size}",
-                    color = Color.White.copy(alpha = 0.75f),
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(end = 12.dp)
+                    text = notice,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
                 )
             }
         }
     }
 
     BackHandler(onBack = onClose)
+
+    val detailsTarget = details
+    if (detailsTarget != null) {
+        DetailsDialog(media = detailsTarget, onDismiss = { details = null })
+    }
+
+    if (confirmingDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmingDelete = false },
+            title = { Text("Eliminar") },
+            text = {
+                Text(
+                    "Este botón todavía no está activado. Cuando lo activemos podrás borrar " +
+                        "la foto del servidor, con confirmación previa."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { confirmingDelete = false }) { Text("Entendido") }
+            }
+        )
+    }
+
+    val editTarget = editing
+    if (editTarget != null) {
+        EditorScreen(
+            media = editTarget,
+            loader = loader,
+            onClose = { editing = null },
+            onSaved = { name ->
+                editing = null
+                message = "Copia guardada en DCIM/Camera: $name"
+            }
+        )
+    }
+}
+
+@Composable
+private fun TopBar(
+    title: String,
+    position: String,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(28.dp),
+        color = Color.Black.copy(alpha = 0.45f),
+        contentColor = Color.White,
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onClose) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
+            }
+            Text(
+                text = title,
+                color = Color.White,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f).padding(start = 4.dp, end = 12.dp)
+            )
+            Text(
+                text = position,
+                color = Color.White.copy(alpha = 0.75f),
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(end = 12.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Barra flotante con las acciones de la foto, en el orden pedido:
+ * compartir, editar, favorito, eliminar y más opciones.
+ */
+@Composable
+private fun BottomActionBar(
+    media: Media,
+    favorite: Boolean,
+    busy: Boolean,
+    onShare: () -> Unit,
+    onEdit: () -> Unit,
+    onFavorite: () -> Unit,
+    onDelete: () -> Unit,
+    onDetails: () -> Unit,
+    onCopyLink: () -> Unit,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var menu by remember { mutableStateOf(false) }
+
+    Surface(
+        shape = RoundedCornerShape(34.dp),
+        color = Color.Black.copy(alpha = 0.55f),
+        contentColor = Color.White,
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ActionIcon(
+                icon = Icons.Filled.Share,
+                label = "Compartir",
+                onClick = onShare,
+                busy = busy
+            )
+
+            if (!media.isVideo) {
+                ActionIcon(
+                    icon = Icons.Filled.Edit,
+                    label = "Editar",
+                    onClick = onEdit
+                )
+            }
+
+            ActionIcon(
+                icon = if (favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                label = if (favorite) "Quitar de favoritos" else "Añadir a favoritos",
+                tint = if (favorite) FavoriteColor else Color.White,
+                onClick = onFavorite
+            )
+
+            if (!media.isVideo) {
+                ActionIcon(
+                    icon = Icons.Filled.DeleteOutline,
+                    label = "Eliminar (próximamente)",
+                    tint = Color.White.copy(alpha = 0.45f),
+                    onClick = onDelete
+                )
+            }
+
+            Box {
+                ActionIcon(
+                    icon = Icons.Filled.MoreVert,
+                    label = "Más opciones",
+                    onClick = { menu = true }
+                )
+
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Detalles") },
+                        leadingIcon = { Icon(Icons.Filled.Info, contentDescription = null) },
+                        onClick = {
+                            menu = false
+                            onDetails()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Copiar enlace") },
+                        leadingIcon = { Icon(Icons.Filled.Link, contentDescription = null) },
+                        onClick = {
+                            menu = false
+                            onCopyLink()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Recargar galería") },
+                        leadingIcon = { Icon(Icons.Filled.Refresh, contentDescription = null) },
+                        onClick = {
+                            menu = false
+                            onRefresh()
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActionIcon(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    tint: Color = Color.White,
+    busy: Boolean = false
+) {
+    IconButton(onClick = onClick, modifier = Modifier.size(46.dp)) {
+        if (busy) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.dp,
+                color = Color.White
+            )
+        } else {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = tint,
+                modifier = Modifier.size(23.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetailsDialog(media: Media, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Detalles") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(media.name, style = MaterialTheme.typography.titleSmall)
+                Text("Carpeta: ${media.folder.ifBlank { "Raíz" }}")
+                Text("Tipo: ${if (media.isVideo) "Video" else "Foto"}")
+                Text("Fecha: ${formatDate(media.modified)}")
+                Text(media.url, style = MaterialTheme.typography.labelSmall)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Cerrar") }
+        }
+    )
+}
+
+private fun formatDate(timestamp: Long): String {
+    if (timestamp <= 0L) return "sin fecha"
+    val formatter = DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy, HH:mm", Locale.forLanguageTag("es"))
+    return Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()).format(formatter)
 }
 
 @Composable

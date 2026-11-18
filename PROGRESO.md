@@ -27,7 +27,8 @@ barra inferior flotante.
 Extra ya hecho: **miniaturas generadas en el servidor** (ver sección 4), que es lo que hace que
 el catálogo cargue rápido.
 
-Pendiente: **etapa 6 (borrar)**, ver sección 7.
+Pendiente: **etapa 6 (borrar)**, ver sección 7. El botón de eliminar del visor ya está puesto
+pero solo muestra un aviso.
 
 ## 3. Servidor casero (celular viejo)
 
@@ -103,6 +104,18 @@ Notas de comportamiento:
 - Si cambia la URL del servidor, el índice guardado se descarta solo (guarda la URL en su cabecera).
 - Errores de red se muestran como "Conéctate al Wi-Fi de casa"; 401 como usuario/clave incorrectos.
 - Los videos se reproducen con ExoPlayer + `OkHttpDataSource` sin caché: streaming puro.
+
+### Acciones del visor (`ui/ViewerScreen.kt`, `ui/EditorScreen.kt`, `ui/MediaActions.kt`)
+
+- Barra inferior flotante en orden: **compartir, editar, favorito, eliminar, más**.
+- Compartir: baja el archivo a `cacheDir/compartir` y lo pasa con `FileProvider`
+  (`com.kuze.galeria.files`, ver `res/xml/file_paths.xml`). Las copias de más de 10 minutos se
+  borran solas en el siguiente uso.
+- Editar: carga la foto a 2048 px en memoria, muestra una vista previa con `ImageView` y
+  `ColorMatrixColorFilter`, y al guardar aplica `renderAdjusted()` y escribe en la galería
+  (`MediaStore`, `RELATIVE_PATH = DCIM/Camera`, JPEG 92) con nombre `KUZE_editada_<fecha>.jpg`.
+- Eliminar: solo diálogo informativo, no borra nada (etapa 6 pendiente).
+- Favoritos: `SettingsStore.favorites` (conjunto de rutas) + `AppState.toggleFavorite()`.
 
 ### Ajustes de diseño (`ui/StyleOptions.kt`)
 

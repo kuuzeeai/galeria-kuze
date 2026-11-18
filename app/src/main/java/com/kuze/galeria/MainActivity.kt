@@ -129,6 +129,9 @@ private fun GaleriaApp(state: AppState) {
                     startIndex = target.index,
                     loader = viewerLoader,
                     api = state.api,
+                    isFavorite = { state.isFavorite(it) },
+                    onToggleFavorite = { state.toggleFavorite(it) },
+                    onRefresh = { scope.launch { state.refresh() } },
                     onClose = { viewer = null }
                 )
             } else {
@@ -166,10 +169,11 @@ private fun LibraryScreen(
     val base = remember(state.items, album) {
         if (album == null) state.items else state.items.filter { it.folder == album }
     }
-    val shown = remember(base, filter) {
+    val shown = remember(base, filter, state.favorites) {
         when (filter) {
             1 -> base.filter { !it.isVideo }
             2 -> base.filter { it.isVideo }
+            3 -> base.filter { it.path in state.favorites }
             else -> base
         }
     }
@@ -211,7 +215,7 @@ private fun LibraryScreen(
 
             if (album == null) {
                 ChipRow(
-                    labels = listOf("Todo", "Fotos", "Videos"),
+                    labels = listOf("Todo", "Fotos", "Videos", "Favoritos"),
                     selectedIndex = filter,
                     onSelect = { filter = it }
                 )

@@ -64,6 +64,11 @@ class SettingsStore(context: Context) {
         get() = prefs.getString(KEY_FONT, "sans") ?: "sans"
         set(value) = prefs.edit().putString(KEY_FONT, value).apply()
 
+    /** Rutas del servidor marcadas como favoritas. */
+    var favorites: Set<String>
+        get() = prefs.getStringSet(KEY_FAVORITES, emptySet())?.toSet() ?: emptySet()
+        set(value) = prefs.edit().putStringSet(KEY_FAVORITES, value).apply()
+
     /** Versión de la limpieza de caché ya aplicada. */
     var cacheVersion: Int
         get() = prefs.getInt(KEY_CACHE_VERSION, 1)
@@ -81,6 +86,7 @@ class SettingsStore(context: Context) {
         const val KEY_PALETTE = "palette"
         const val KEY_COLUMNS = "columns"
         const val KEY_FONT = "font"
+        const val KEY_FAVORITES = "favorites"
         const val KEY_CACHE_VERSION = "cache_version"
     }
 }
