@@ -247,17 +247,28 @@ private fun LibraryScreen(
                         onButton = { scope.launch { state.refresh() } }
                     )
 
-                    album != null -> PhotosScreen(shown, loader, onOpen = { index -> onOpen(shown, index) })
+                    album != null -> PhotosScreen(
+                        items = shown,
+                        loader = loader,
+                        thumbUrlFor = { state.api.thumbUrlFor(it) },
+                        onOpen = { index -> onOpen(shown, index) }
+                    )
 
                     tab == 0 -> PhotosScreen(
                         items = shown,
                         loader = loader,
+                        thumbUrlFor = { state.api.thumbUrlFor(it) },
                         showHero = true,
                         lastSync = state.lastSync,
                         onOpen = { index -> onOpen(shown, index) }
                     )
 
-                    else -> FoldersScreen(state.items, loader) { folder -> onAlbumChange(folder) }
+                    else -> FoldersScreen(
+                        items = state.items,
+                        loader = loader,
+                        thumbUrlFor = { state.api.thumbUrlFor(it) },
+                        onOpenFolder = { folder -> onAlbumChange(folder) }
+                    )
                 }
             }
         }

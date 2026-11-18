@@ -5,9 +5,10 @@ desde el mismo Wi-Fi de casa. Nada se mueve ni se borra en el servidor: la app s
 
 ## Qué hace
 
-- Pestaña **Fotos**: cuadrícula con todo, agrupado por día.
+- Pestaña **Fotos**: cuadrícula de 3 por fila, agrupada por día.
 - Pestaña **Carpetas**: cada carpeta del servidor como un álbum.
-- Miniaturas en línea, con caché en el teléfono de hasta 500 MB.
+- Miniaturas livianas generadas en el servidor (puerto 8081); las fotos originales solo se piden al abrirlas.
+- Miniaturas en caché en el teléfono, hasta 500 MB.
 - Visor con zoom (doble toque), deslizar a la anterior/siguiente y videos en streaming.
 - Deslizar hacia abajo para refrescar.
 - Ajustes guardados cifrados (URL, usuario y clave).

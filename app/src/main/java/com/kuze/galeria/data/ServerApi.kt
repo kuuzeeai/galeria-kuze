@@ -43,6 +43,19 @@ class ServerApi(private val settings: SettingsStore) {
     private fun urlFor(path: String): HttpUrl? =
         baseUrl.toHttpUrlOrNull()?.resolve(path.ifBlank { "/" })
 
+    /**
+     * URL de la miniatura de un archivo: mismo servidor, puerto 8081,
+     * misma carpeta y mismo nombre con extensión .jpg.
+     */
+    fun thumbUrlFor(media: Media): String? {
+        val base = baseUrl.toHttpUrlOrNull() ?: return null
+        val thumbBase = base.newBuilder().port(THUMB_PORT).build()
+        val builder = thumbBase.newBuilder()
+        media.folder.split('/').filter { it.isNotBlank() }.forEach { builder.addPathSegment(it) }
+        builder.addPathSegment(media.name.substringBeforeLast('.', media.name) + ".jpg")
+        return builder.build().toString()
+    }
+
     /** Lee una carpeta y devuelve sus subcarpetas y sus archivos. */
     suspend fun list(path: String): DirListing = withContext(Dispatchers.IO) {
         val target = urlFor(path) ?: throw IllegalArgumentException("La dirección del servidor no es válida")
@@ -129,6 +142,7 @@ class ServerApi(private val settings: SettingsStore) {
     }
 
     private companion object {
+        const val THUMB_PORT = 8081
         val offsetPatterns = listOf(
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss xxx"),
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss xx"),
