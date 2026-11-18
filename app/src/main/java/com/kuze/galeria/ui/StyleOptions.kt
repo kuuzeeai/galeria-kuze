@@ -271,7 +271,7 @@ fun thumbWidthFor(columns: Int): Int = when (columns) {
 
 /** Peso aproximado de cada miniatura en KB. */
 fun approxKbFor(columns: Int): Int = when (columns) {
-    2 -> 55
-    4 -> 16
-    else -> 30
+    2 -> 35
+    4 -> 12
+    else -> 18
 }

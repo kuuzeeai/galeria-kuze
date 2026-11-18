@@ -58,7 +58,7 @@ Objetivo: no bajar la foto completa para navegar.
     `~/.thumbs/s240`, con la misma estructura de carpetas y extensión `.jpg`
     (`Camera/IMG_1.jpg` → `~/.thumbs/s320/Camera/IMG_1.jpg`).
   - Primero genera la de 480 px desde la foto y luego las de 320 y 240 desde esa.
-  - Peso aproximado por miniatura: **480 px ≈ 55 KB · 320 px ≈ 30 KB · 240 px ≈ 16 KB**.
+  - Peso aproximado por miniatura: **480 px ≈ 30–35 KB · 320 px ≈ 17 KB · 240 px ≈ 11 KB** (medido en este servidor).
   - Se salta archivos ya generados, borra miniaturas de fotos eliminadas y borra el formato
     viejo de 300 px que quedaba suelto en la raíz de `~/.thumbs`.
   - Con `--loop` repite cada 15 minutos (sesión tmux `thumbs-gen`).
