@@ -132,8 +132,10 @@ private fun GaleriaApp(state: AppState) {
                     isFavorite = { state.isFavorite(it) },
                     onToggleFavorite = { state.toggleFavorite(it) },
                     onRefresh = { scope.launch { state.refresh() } },
-                    onDownload = { state.downloadMedia(it) },
-                    onCreateFolder = { /* se pide nombre en el diálogo */ },
+                    onDownload = { scope.launch { state.downloadMedia(it) } },
+                    onCreateFolder = { name ->
+                        scope.launch { state.createVirtualFolder(name) }
+                    },
                     onMoveToFolder = { media, folderName -> state.moveToVirtualFolder(media, folderName) },
                     onFolderCreated = { },
                     onClose = { viewer = null }
@@ -147,7 +149,12 @@ private fun GaleriaApp(state: AppState) {
                     onToggleTheme = { state.toggleTheme() },
                     onAlbumChange = { album = it },
                     onOpen = { list, index -> viewer = ViewerTarget(list, index) },
-                    onSettings = { screen = Screen.Settings }
+                    onSettings = { screen = Screen.Settings },
+                    virtualFolders = state.virtualFolders,
+                    onDownload = { scope.launch { state.downloadMedia(it) } },
+                    onCreateFolder = { name ->
+                        scope.launch { state.createVirtualFolder(name) }
+                    }
                 )
             }
         }
@@ -166,10 +173,7 @@ private fun LibraryScreen(
     onOpen: (List<Media>, Int) -> Unit,
     onSettings: () -> Unit,
     virtualFolders: Map<String, Set<String>>,
-    onDownload: (Media) -> Unit,
-    onCreateFolder: () -> Unit,
-    onMoveToFolder: (Media, String) -> Unit,
-    onFolderCreated: (String) -> Unit
+    onCreateFolder: (String) -> Unit
 ) {
     val scope = rememberCoroutineScope()
     var tab by remember { mutableIntStateOf(0) }

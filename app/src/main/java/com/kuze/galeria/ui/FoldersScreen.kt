@@ -61,7 +61,7 @@ fun FoldersScreen(
     ) {
         // Carpetas reales del servidor + carpetas creadas solo en la app.
         val virtual = virtualFolders.entries.toList()
-        val all = albums + virtual.map { Album(it.key, mediaInFolder(it.key)) }
+        val all = albums + virtual.map { Album(it.key, mediaInFolder(items, it.key)) }
 
         items(all, key = { it.folder }) { album ->
             AlbumCard(album, loader, thumbUrlsFor) { onOpenFolder(album.folder) }
@@ -69,8 +69,9 @@ fun FoldersScreen(
     }
 }
 
-private fun mediaInFolder(folderName: String): List<Media> {
-    return items.filter { it.path in (virtualFolders[folderName] ?: emptySet()) }
+private fun mediaInFolder(items: List<Media>, folderName: String): List<Media> {
+    val paths = virtualFolders[folderName] ?: return emptyList()
+    return items.filter { it.path in paths }
 }
 
 @Composable

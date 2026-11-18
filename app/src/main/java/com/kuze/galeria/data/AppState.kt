@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.sync.Mutex
 import java.io.File
 import java.io.IOException
+import com.kuze.galeria.ui.downloadMediaToGallery
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
@@ -81,7 +82,7 @@ class AppState(context: Context) {
     }
 
     fun moveToVirtualFolder(media: Media, folderName: String) {
-        val next = virtualFolders.toMutableMap()
+        val next = virtualFolders.toMutableMap { (k, v) -> k to v.toMutableSet() }
         // Se "mueve": sale de todas las carpetas virtuales y entra en la elegida.
         next.values.forEach { it.remove(media.path) }
         next[folderName] = (next[folderName] ?: emptySet()) + media.path
@@ -90,7 +91,7 @@ class AppState(context: Context) {
     }
 
     fun removeFromVirtualFolders(media: Media) {
-        val next = virtualFolders.toMutableMap()
+        val next = virtualFolders.toMutableMap { (k, v) -> k to v.toMutableSet() }
         var changed = false
         next.values.forEach { if (it.remove(media.path)) changed = true }
         if (changed) {

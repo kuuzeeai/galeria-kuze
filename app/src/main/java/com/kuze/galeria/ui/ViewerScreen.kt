@@ -17,6 +17,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+androidx.compose.foundation.layout.height
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -95,9 +104,9 @@ fun ViewerScreen(
     onRefresh: () -> Unit,
     onClose: () -> Unit,
     onDownload: (Media) -> Unit,
-    onCreateFolder: () -> Unit,
+    onCreateFolder: (String) -> Unit,
     onMoveToFolder: (Media, String) -> Unit,
-    onFolderCreated: (String) -> Unit
+    virtualFolders: Map<String, Set<String>>
 ) {
     if (items.isEmpty()) {
         LaunchedEffect(Unit) { onClose() }
@@ -119,14 +128,26 @@ fun ViewerScreen(
     var downloading by remember { mutableStateOf(false) }
     var creatingFolder by remember { mutableStateOf(false) }
     var movingToFolder by remember { mutableStateOf<String?>(null) }
+    var showNewFolder by remember { mutableStateOf(false) }
+    var newFolderName by remember { mutableStateOf("") }
+    var showMoveDialog by remember { mutableStateOf(false) }
+    var folderNames by remember { mutableStateOf(listOf<String>()) }
 
     LaunchedEffect(pagerState.currentPage) { zoomed = false }
+
+    val current: Media? = remember(pagerState.currentPage, items) {
+        items.getOrNull(pagerState.currentPage)
+    }
 
     LaunchedEffect(message) {
         if (message != null) {
             delay(3600)
             message = null
         }
+    }
+
+    LaunchedEffect(virtualFolders) {
+        folderNames = virtualFolders.keys.toList()
     }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
@@ -153,7 +174,6 @@ fun ViewerScreen(
                 .fillMaxWidth()
         )
 
-        val current = items.getOrNull(pagerState.currentPage)
         if (current != null) {
             BottomActionBar(
                 media = current,
@@ -187,11 +207,10 @@ fun ViewerScreen(
                     onRefresh()
                     message = "Actualizando la galería…"
                 },
-                onCreateFolder = { onCreateFolder() },
-                onMoveToFolder = { folderName ->
+                onMoveItem = { mediaItem, folderName ->
                     movingToFolder = folderName
                     scope.launch {
-                        onMoveToFolder(current, folderName)
+                        onMoveToFolder(mediaItem, folderName)
                         message = "Movido a la carpeta '$folderName'"
                         movingToFolder = null
                     }
@@ -261,8 +280,68 @@ fun ViewerScreen(
 
     val folderTarget = movingToFolder
     if (folderTarget != null) {
-        // Se muestra el mensaje y se cierra; la lista se actualiza al volver a la galería.
         Unit
+    }
+
+    // Diálogo: crear carpeta
+    if (showNewFolder) {
+        AlertDialog(
+            onDismissRequest = { showNewFolder = false },
+            title = { Text("Crear carpeta") },
+            text = {
+                androidx.compose.material3.OutlinedTextField(
+                    value = newFolderName,
+                    onValueChange = { newFolderName = it },
+                    label = { Text("Nombre de la carpeta") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (newFolderName.isNotBlank()) {
+                        onCreateFolder(newFolderName.trim())
+                        newFolderName = ""
+                        showNewFolder = false
+                    }
+                }) { Text("Crear") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNewFolder = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
+    // Diálogo: mover a carpeta
+    if (showMoveDialog && current != null) {
+        AlertDialog(
+            onDismissRequest = { showMoveDialog = false },
+            title = { Text("Mover a carpeta") },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    folderNames.forEach { folder ->
+                        TextButton(
+                            onClick = {
+                                onMoveItem(current, folder)
+                                showMoveDialog = false
+                                movingToFolder = folder
+                                message = "Movido a '$folder'"
+                            }
+                        ) {
+                            Text(folder, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                    if (folderNames.isEmpty()) {
+                        Text("Todavía no hay carpetas creadas.", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showMoveDialog = false }) { Text("Cerrar") }
+            }
+        )
     }
 }
 
@@ -316,8 +395,7 @@ private fun BottomActionBar(
     onDetails: () -> Unit,
     onCopyLink: () -> Unit,
     onRefresh: () -> Unit,
-    onCreateFolder: () -> Unit,
-    onMoveToFolder: (String) -> Unit,
+    onMoveItem: (Media, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var menu by remember { mutableStateOf(false) }
@@ -421,18 +499,16 @@ private fun BottomActionBar(
                         DropdownMenuItem(
                             text = { Text("Crear carpeta") },
                             leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
-                            onClick = {
-                                menu = false
-                                onCreateFolder()
-                            }
+                            onClick = { menu = false; showNewFolder = true }
+                        )
                         )
                         DropdownMenuItem(
                             text = { Text("Mover a carpeta") },
                             leadingIcon = { Icon(Icons.Filled.DeleteOutline, contentDescription = null) },
-                            enabled = folders.isNotEmpty(),
+                            enabled = folderNames.isNotEmpty(),
                             onClick = {
                                 menu = false
-                                // Se selecciona carpeta en el menú inferior.
+                                if (folderNames.isNotEmpty()) showMoveDialog = true
                             }
                         )
                     }
