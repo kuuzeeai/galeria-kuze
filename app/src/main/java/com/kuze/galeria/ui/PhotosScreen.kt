@@ -2,11 +2,9 @@ package com.kuze.galeria.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,11 +14,13 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -41,29 +41,48 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** Cuadrícula de fotos agrupada por día. */
+/** Cuadrícula de fotos agrupada por día, con tarjetas redondeadas. */
 @Composable
 fun PhotosScreen(
     items: List<Media>,
     loader: ImageLoader,
+    showHero: Boolean = false,
+    lastSync: Long = 0L,
     onOpen: (index: Int) -> Unit
 ) {
     val groups = remember(items) { groupByDay(items) }
+    val folderCount = remember(items) { items.map { it.folder }.distinct().size }
 
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(112.dp),
-        contentPadding = PaddingValues(start = 2.dp, end = 2.dp, bottom = 24.dp),
+        columns = GridCells.Adaptive(150.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 20.dp),
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp),
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxSize()
     ) {
+        if (showHero) {
+            item(key = "hero", span = { GridItemSpan(maxLineSpan) }) {
+                HeroCard(
+                    photoCount = items.size,
+                    folderCount = folderCount,
+                    updatedText = updatedLabel(lastSync)
+                )
+            }
+        }
+
         groups.forEach { group ->
             item(
                 key = "header-${group.date?.toString() ?: "sin-fecha"}",
                 span = { GridItemSpan(maxLineSpan) }
             ) {
-                Column(Modifier.fillMaxWidth().padding(start = 8.dp, top = 12.dp, bottom = 6.dp)) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = 4.dp, top = 12.dp, bottom = 2.dp)
+                ) {
                     Text(
                         text = dayLabel(group.date),
-                        style = MaterialTheme.typography.titleSmall
+                        style = MaterialTheme.typography.titleMedium
                     )
                     Text(
                         text = "${group.entries.size} ${if (group.entries.size == 1) "elemento" else "elementos"}",
@@ -72,6 +91,7 @@ fun PhotosScreen(
                     )
                 }
             }
+
             items(group.entries, key = { it.media.id }) { entry ->
                 ThumbCell(
                     media = entry.media,
@@ -87,29 +107,36 @@ fun PhotosScreen(
 fun ThumbCell(media: Media, loader: ImageLoader, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .padding(1.dp)
             .aspectRatio(1f)
-            .clip(RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(24.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable(onClick = onClick)
     ) {
         if (media.isVideo) {
             Box(
-                modifier = Modifier.fillMaxSize().background(Color(0xFF1B2226)),
+                modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Filled.PlayArrow,
-                    contentDescription = "Video",
-                    modifier = Modifier.size(34.dp),
-                    tint = Color.White
-                )
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Filled.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
             }
         } else {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(media.url)
-                    .size(320)
+                    .size(420)
                     .crossfade(true)
                     .build(),
                 imageLoader = loader,
@@ -118,19 +145,6 @@ fun ThumbCell(media: Media, loader: ImageLoader, onClick: () -> Unit) {
                 modifier = Modifier.fillMaxSize()
             )
         }
-    }
-}
-
-/** Cabecera de un mes con su conteo, usada en álbumes. */
-@Composable
-fun SectionHeader(title: String, subtitle: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 8.dp, top = 12.dp, bottom = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(title, style = MaterialTheme.typography.titleSmall)
-        Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -157,6 +171,20 @@ fun dayLabel(date: LocalDate?): String {
     return when (date) {
         today -> "Hoy"
         today.minusDays(1) -> "Ayer"
-        else -> date.format(DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", Locale.forLanguageTag("es")))
+        else -> date.format(DateTimeFormatter.ofPattern("d 'de' MMMM", Locale.forLanguageTag("es")))
     }
 }
+
+fun updatedLabel(timestamp: Long): String {
+    if (timestamp <= 0L) return "sin actualizar"
+    val diff = (System.currentTimeMillis() - timestamp).coerceAtLeast(0L)
+    return when {
+        diff < 60_000L -> "actualizado ahora"
+        diff < 3_600_000L -> "actualizado hace ${diff / 60_000L} min"
+        diff < 86_400_000L -> "actualizado hace ${diff / 3_600_000L} h"
+        else -> "actualizado hace ${diff / 86_400_000L} días"
+    }
+}
+
+/** Color de fondo suave para celdas vacías del visor. */
+val SoftImageBackground = Color(0xFFEAF1EC)

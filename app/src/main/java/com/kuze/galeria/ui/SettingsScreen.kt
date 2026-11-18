@@ -2,6 +2,7 @@ package com.kuze.galeria.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,27 +10,28 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -45,7 +47,6 @@ private sealed interface TestState {
     data class Fail(val text: String) : TestState
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     settings: SettingsStore,
@@ -66,36 +67,56 @@ fun SettingsScreen(
         settings.pass = pass
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(if (firstRun) "Conectar con el servidor" else "Ajustes") },
-                navigationIcon = {
-                    if (!firstRun) {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
-                        }
-                    }
-                }
-            )
-        }
-    ) { padding ->
+    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         Column(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(20.dp),
+                .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = if (firstRun) {
-                    "Escribe la dirección del servidor de fotos y el usuario y la clave que te dio miniserve."
-                } else {
-                    "Cambia la dirección si el celular viejo tiene otra IP."
-                },
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (!firstRun) {
+                    CircleIconButton(
+                        icon = Icons.Filled.ArrowBack,
+                        contentDescription = "Volver",
+                        container = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        onClick = onBack,
+                        size = 46.dp
+                    )
+                }
+                Text(
+                    text = if (firstRun) "Conectar" else "Ajustes",
+                    style = MaterialTheme.typography.headlineLarge
+                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(26.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text(
+                        text = if (firstRun) {
+                            "Escribe la dirección del servidor de fotos y el usuario y la clave de miniserve. Se guardan cifrados en este teléfono."
+                        } else {
+                            "Cambia la dirección si el celular viejo tiene otra IP. Los datos quedan cifrados en este teléfono."
+                        },
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
 
             OutlinedTextField(
                 value = url,
@@ -103,6 +124,7 @@ fun SettingsScreen(
                 label = { Text("Dirección del servidor") },
                 placeholder = { Text(DEFAULT_URL) },
                 singleLine = true,
+                shape = RoundedCornerShape(20.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -112,6 +134,7 @@ fun SettingsScreen(
                 onValueChange = { user = it },
                 label = { Text("Usuario") },
                 singleLine = true,
+                shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -120,18 +143,13 @@ fun SettingsScreen(
                 onValueChange = { pass = it },
                 label = { Text("Clave") },
                 singleLine = true,
+                shape = RoundedCornerShape(20.dp),
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Text(
-                text = "Estos datos se guardan cifrados dentro de este teléfono.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(2.dp))
 
             Button(
                 onClick = {
@@ -140,16 +158,17 @@ fun SettingsScreen(
                     scope.launch {
                         test = try {
                             val listing = api.list("/")
-                            val fotos = listing.folders.size
+                            val carpetas = listing.folders.size
                             val archivos = listing.files.size
-                            TestState.Ok("Conexión correcta: $fotos carpetas y $archivos archivos en la raíz.")
+                            TestState.Ok("Conexión correcta: $carpetas carpetas y $archivos archivos en la raíz.")
                         } catch (e: Exception) {
                             TestState.Fail(e.message ?: "No se pudo conectar")
                         }
                     }
                 },
                 enabled = test != TestState.Running,
-                modifier = Modifier.fillMaxWidth()
+                shape = RoundedCornerShape(26.dp),
+                modifier = Modifier.fillMaxWidth().height(52.dp)
             ) {
                 if (test == TestState.Running) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -170,7 +189,8 @@ fun SettingsScreen(
                     onSaved()
                 },
                 enabled = url.isNotBlank() && user.isNotBlank() && pass.isNotBlank(),
-                modifier = Modifier.fillMaxWidth()
+                shape = RoundedCornerShape(26.dp),
+                modifier = Modifier.fillMaxWidth().height(52.dp)
             ) {
                 Text(if (firstRun) "Guardar y ver fotos" else "Guardar")
             }

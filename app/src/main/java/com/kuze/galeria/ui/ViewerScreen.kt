@@ -14,11 +14,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -85,26 +87,37 @@ fun ViewerScreen(
             }
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = Color.Black.copy(alpha = 0.45f),
+            contentColor = Color.White,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(12.dp)
+                .fillMaxWidth()
         ) {
-            IconButton(onClick = onClose) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
+            Row(
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onClose) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
+                }
+                Text(
+                    text = items.getOrNull(pagerState.currentPage)?.name.orEmpty(),
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f).padding(start = 4.dp, end = 12.dp)
+                )
+                Text(
+                    text = "${pagerState.currentPage + 1}/${items.size}",
+                    color = Color.White.copy(alpha = 0.75f),
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(end = 12.dp)
+                )
             }
-            Text(
-                text = items.getOrNull(pagerState.currentPage)?.name.orEmpty(),
-                color = Color.White,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f).padding(end = 12.dp)
-            )
-            Text(
-                text = "${pagerState.currentPage + 1}/${items.size}",
-                color = Color.White.copy(alpha = 0.7f),
-                style = MaterialTheme.typography.labelMedium
-            )
         }
     }
 

@@ -38,7 +38,15 @@ class AppState(context: Context) {
     var lastSync by mutableStateOf(0L)
         private set
 
+    var darkTheme by mutableStateOf(settings.darkTheme)
+        private set
+
     private var started = false
+
+    fun toggleTheme() {
+        darkTheme = !darkTheme
+        settings.darkTheme = darkTheme
+    }
 
     /** Primer arranque: muestra lo guardado y actualiza si está viejo. */
     suspend fun loadInitial() {

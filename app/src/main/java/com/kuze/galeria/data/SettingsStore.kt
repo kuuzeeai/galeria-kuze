@@ -44,6 +44,11 @@ class SettingsStore(context: Context) {
         get() = prefs.getLong(KEY_CACHED_AT, 0L)
         set(value) = prefs.edit().putLong(KEY_CACHED_AT, value).apply()
 
+    /** Tema oscuro activado. */
+    var darkTheme: Boolean
+        get() = prefs.getBoolean(KEY_DARK, false)
+        set(value) = prefs.edit().putBoolean(KEY_DARK, value).apply()
+
     val isConfigured: Boolean
         get() = user.isNotBlank() && pass.isNotBlank() && baseUrl.isNotBlank()
 
@@ -52,5 +57,6 @@ class SettingsStore(context: Context) {
         const val KEY_USER = "user"
         const val KEY_PASS = "pass"
         const val KEY_CACHED_AT = "cached_at"
+        const val KEY_DARK = "dark_theme"
     }
 }

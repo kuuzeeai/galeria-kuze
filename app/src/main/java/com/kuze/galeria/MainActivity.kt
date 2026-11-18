@@ -3,28 +3,27 @@ package com.kuze.galeria
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,12 +35,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.ImageLoader
 import com.kuze.galeria.data.AppState
 import com.kuze.galeria.data.Media
+import com.kuze.galeria.ui.ChipRow
+import com.kuze.galeria.ui.ExpressiveBottomBar
+import com.kuze.galeria.ui.ExpressiveHeader
+import com.kuze.galeria.ui.ExpressiveMessage
 import com.kuze.galeria.ui.FoldersScreen
 import com.kuze.galeria.ui.GaleriaTheme
 import com.kuze.galeria.ui.PhotosScreen
@@ -59,7 +60,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val state = AppState(applicationContext)
         setContent {
-            GaleriaTheme {
+            GaleriaTheme(darkTheme = state.darkTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -111,6 +112,8 @@ private fun GaleriaApp(state: AppState) {
                     state = state,
                     loader = loader,
                     album = album,
+                    darkTheme = state.darkTheme,
+                    onToggleTheme = { state.toggleTheme() },
                     onAlbumChange = { album = it },
                     onOpen = { list, index -> viewer = ViewerTarget(list, index) },
                     onSettings = { screen = Screen.Settings }
@@ -126,97 +129,123 @@ private fun LibraryScreen(
     state: AppState,
     loader: ImageLoader,
     album: String?,
+    darkTheme: Boolean,
+    onToggleTheme: () -> Unit,
     onAlbumChange: (String?) -> Unit,
     onOpen: (List<Media>, Int) -> Unit,
     onSettings: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
     var tab by remember { mutableIntStateOf(0) }
+    var filter by remember { mutableIntStateOf(0) }
 
-    val shown = remember(state.items, album) {
+    val base = remember(state.items, album) {
         if (album == null) state.items else state.items.filter { it.folder == album }
+    }
+    val shown = remember(base, filter) {
+        when (filter) {
+            1 -> base.filter { !it.isVideo }
+            2 -> base.filter { it.isVideo }
+            else -> base
+        }
+    }
+
+    val title = album?.let { if (it.isBlank()) "Raíz" else it } ?: "Galería"
+    val subtitle = if (album == null) {
+        "${state.items.size} archivos"
+    } else {
+        "${base.size} ${if (base.size == 1) "elemento" else "elementos"}"
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = album?.let { if (it.isBlank()) "Raíz" else it } ?: "Galería Kuze",
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                },
-                navigationIcon = {
-                    if (album != null) {
-                        IconButton(onClick = { onAlbumChange(null) }) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
-                        }
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { scope.launch { state.refresh() } },
-                        enabled = !state.loading
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refrescar")
-                    }
-                    IconButton(onClick = onSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Ajustes")
-                    }
-                }
+        containerColor = MaterialTheme.colorScheme.background,
+        bottomBar = {
+            ExpressiveBottomBar(
+                selectedIndex = tab,
+                onSelect = { tab = it },
+                onRefresh = { scope.launch { state.refresh() } },
+                refreshing = state.loading
             )
         }
     ) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+        ) {
+            ExpressiveHeader(
+                title = title,
+                darkTheme = darkTheme,
+                onToggleTheme = onToggleTheme,
+                onSettings = onSettings,
+                onBack = if (album != null) ({ onAlbumChange(null) }) else null,
+                subtitle = subtitle
+            )
+
             if (album == null) {
-                TabRow(selectedTabIndex = tab) {
-                    Tab(
-                        selected = tab == 0,
-                        onClick = { tab = 0 },
-                        text = { Text("Fotos") }
-                    )
-                    Tab(
-                        selected = tab == 1,
-                        onClick = { tab = 1 },
-                        text = { Text("Carpetas") }
-                    )
-                }
+                ChipRow(
+                    labels = listOf("Todo", "Fotos", "Videos"),
+                    selectedIndex = filter,
+                    onSelect = { filter = it }
+                )
             }
+
+            Spacer(Modifier.height(4.dp))
 
             val error = state.error
             if (error != null && shown.isNotEmpty()) {
-                Text(
-                    text = error,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)
-                )
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(Icons.Filled.WifiOff, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Text(error, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
             }
 
             PullToRefreshBox(
                 isRefreshing = state.loading,
                 onRefresh = { scope.launch { state.refresh() } },
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.weight(1f).fillMaxWidth()
             ) {
                 when {
                     shown.isEmpty() && state.loading -> LoadingState(state.progress)
 
-                    shown.isEmpty() && error != null -> MessageState(
-                        text = error,
+                    shown.isEmpty() && error != null -> ExpressiveMessage(
+                        title = error,
+                        detail = "Revisa que el celular viejo esté prendido y en el mismo Wi-Fi.",
+                        icon = Icons.Filled.WifiOff,
                         buttonText = "Reintentar",
                         onButton = { scope.launch { state.refresh() } }
                     )
 
-                    shown.isEmpty() -> MessageState(
-                        text = "Todavía no hay fotos.\nDesliza hacia abajo para refrescar.",
+                    shown.isEmpty() -> ExpressiveMessage(
+                        title = "Todavía no hay fotos",
+                        detail = "Desliza hacia abajo para refrescar.",
+                        icon = Icons.Filled.PhotoLibrary,
                         buttonText = "Refrescar",
                         onButton = { scope.launch { state.refresh() } }
                     )
 
-                    album != null -> PhotosScreen(shown, loader) { index -> onOpen(shown, index) }
+                    album != null -> PhotosScreen(shown, loader, onOpen = { index -> onOpen(shown, index) })
 
-                    tab == 0 -> PhotosScreen(shown, loader) { index -> onOpen(shown, index) }
+                    tab == 0 -> PhotosScreen(
+                        items = shown,
+                        loader = loader,
+                        showHero = true,
+                        lastSync = state.lastSync,
+                        onOpen = { index -> onOpen(shown, index) }
+                    )
 
                     else -> FoldersScreen(state.items, loader) { folder -> onAlbumChange(folder) }
                 }
@@ -229,35 +258,17 @@ private fun LibraryScreen(
 private fun LoadingState(progress: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            CircularProgressIndicator(modifier = Modifier.size(36.dp))
+            CircularProgressIndicator(
+                modifier = Modifier.size(40.dp),
+                strokeWidth = 3.dp,
+                color = MaterialTheme.colorScheme.primary
+            )
             Text(
                 text = progress.ifBlank { "Leyendo el servidor…" },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 12.dp)
+                modifier = Modifier.padding(top = 14.dp)
             )
-        }
-    }
-}
-
-@Composable
-private fun MessageState(text: String, buttonText: String?, onButton: (() -> Unit)?) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(28.dp)
-        ) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            if (buttonText != null && onButton != null) {
-                Button(onClick = onButton, modifier = Modifier.padding(top = 16.dp)) {
-                    Text(buttonText)
-                }
-            }
         }
     }
 }
