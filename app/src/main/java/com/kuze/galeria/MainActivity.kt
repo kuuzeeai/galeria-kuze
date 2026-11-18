@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import coil.ImageLoader
 import com.kuze.galeria.data.AppState
 import com.kuze.galeria.data.Media
@@ -60,6 +62,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val state = AppState(applicationContext)
         setContent {
+            SideEffect {
+                val controller = WindowCompat.getInsetsController(window, window.decorView)
+                controller.isAppearanceLightStatusBars = !state.darkTheme
+                controller.isAppearanceLightNavigationBars = !state.darkTheme
+            }
             GaleriaTheme(darkTheme = state.darkTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
