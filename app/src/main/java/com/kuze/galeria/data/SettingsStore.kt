@@ -1,6 +1,8 @@
 package com.kuze.galeria.data
 
 import android.content.Context
+import org.json.JSONObject
+import java.io.File
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
@@ -24,7 +26,7 @@ class SettingsStore(context: Context) {
         )
     } catch (t: Throwable) {
         // Si el almacén cifrado falla en algún teléfono, no se cae la app.
-        context.getSharedPreferences("galeria_fallback", Context.MODE_PRIVATE)
+        context.getSharedPreferences("galeria_secure", Context.MODE_PRIVATE)
     }
 
     var baseUrl: String
@@ -69,6 +71,11 @@ class SettingsStore(context: Context) {
         get() = prefs.getStringSet(KEY_FAVORITES, emptySet())?.toSet() ?: emptySet()
         set(value) = prefs.edit().putStringSet(KEY_FAVORITES, value).apply()
 
+    /** Rutas ocultas: se ocultan de la galería pero el archivo queda en el servidor. */
+    var hiddenPaths: Set<String>
+        get() = prefs.getStringSet(KEY_HIDDEN, emptySet())?.toSet() ?: emptySet()
+        set(value) = prefs.edit().putStringSet(KEY_HIDDEN, value).apply()
+
     /** Qué mostrar: "ambos" (servidor + local), "solo_servidor" o "solo_local". */
     var localMode: String
         get() = prefs.getString(KEY_LOCAL_MODE, "ambos") ?: "ambos"
@@ -97,6 +104,46 @@ class SettingsStore(context: Context) {
     val isConfigured: Boolean
         get() = user.isNotBlank() && pass.isNotBlank() && baseUrl.isNotBlank()
 
+    /** Exporta la configuración a un archivo de texto en la carpeta Descargas. */
+    fun exportConfig(file: File): Result<String> = runCatching {
+        val json = JSONObject().apply {
+            put("baseUrl", baseUrl)
+            put("user", user)
+            put("darkTheme", darkTheme)
+            put("palette", palette)
+            put("columns", columns)
+            put("font", font)
+            put("localMode", localMode)
+            put("favorites", favorites.toList())
+            put("virtualFolders", JSONObject(virtualFolders.mapValues { it.value.toList() }))
+        }
+        file.parentFile?.mkdirs()
+        file.writeText(json.toString(2))
+        file.absolutePath
+    }
+
+    /** Importa la configuración desde un archivo de texto. */
+    fun importConfig(file: File): Result<String> = runCatching {
+        val json = JSONObject(file.readText())
+        baseUrl = json.getString("baseUrl")
+        user = json.getString("user")
+        darkTheme = json.optBoolean("darkTheme", false)
+        palette = json.getString("palette")
+        columns = json.optInt("columns", 4)
+        font = json.getString("font")
+        localMode = json.getString("localMode")
+        val fav = json.optJSONArray("favorites")
+        favorites = if (fav != null) (0 until fav.length()).map { fav.getString(it) }.toSet() else emptySet()
+        val folders = json.optJSONObject("virtualFolders")
+        virtualFolders = if (folders != null) {
+            folders.keys().asSequence().associate { key ->
+                val arr = folders.optJSONArray(key)
+                key to (if (arr != null) (0 until arr.length()).map { arr.getString(it) }.toSet() else emptySet())
+            }
+        } else emptyMap()
+        "Configuración importada"
+    }
+
     private companion object {
         const val KEY_URL = "url"
         const val KEY_USER = "user"
@@ -110,5 +157,6 @@ class SettingsStore(context: Context) {
         const val KEY_LOCAL_MODE = "local_mode"
         const val KEY_VIRTUAL_FOLDERS = "virtual_folders"
         const val KEY_CACHE_VERSION = "cache_version"
+        const val KEY_HIDDEN = "hidden_paths"
     }
 }

@@ -37,24 +37,14 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.ui.res.painterResource
-import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.FavoriteBorder
-import androidx.compose.material.icons.rounded.FileDownload
-import androidx.compose.material.icons.rounded.IosShare
-import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
@@ -63,6 +53,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -123,6 +116,7 @@ fun ViewerScreen(
     onClose: () -> Unit,
     onDownload: (Media) -> Unit,
     onShare: (Media) -> Unit,
+    onDelete: (Media, String) -> Unit,
     onCreateFolder: (String) -> Unit,
     onMoveToFolder: (Media, String) -> Unit,
     virtualFolders: Map<String, Set<String>>
@@ -146,7 +140,6 @@ fun ViewerScreen(
     var confirmingDelete by remember { mutableStateOf(false) }
     var downloading by remember { mutableStateOf(false) }
     var creatingFolder by remember { mutableStateOf(false) }
-    var movingToFolder by remember { mutableStateOf<String?>(null) }
     var showNewFolder by remember { mutableStateOf(false) }
     var newFolderName by remember { mutableStateOf("") }
     var showMoveDialog by remember { mutableStateOf(false) }
@@ -287,7 +280,7 @@ fun ViewerScreen(
         DetailsDialog(media = detailsTarget, onDismiss = { details = null })
     }
 
-    if (confirmingDelete) {
+    if (confirmingDelete && current != null) {
         ExpressiveSheet(onDismiss = { confirmingDelete = false }) {
             Text(
                 text = "Eliminar",
@@ -295,21 +288,61 @@ fun ViewerScreen(
                 modifier = Modifier.padding(start = 10.dp, top = 4.dp, bottom = 8.dp)
             )
             Text(
-                text = "Este botón todavía no está activado. Cuando lo activemos podrás borrar " +
-                    "la foto del servidor, con confirmación previa.",
+                text = "La foto vive en el celular viejo y no se puede bajar desde la app. " +
+                    "El archivo real se queda allá. ¿Qué quieres hacer?",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 10.dp)
             )
-            TextButton(
-                onClick = { confirmingDelete = false },
-                modifier = Modifier.padding(top = 8.dp)
-            ) { Text("Entendido") }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        val target = current
+                        confirmingDelete = false
+                        if (target != null) scope.launch { onDelete(target, "para_mi") }
+                    },
+                    shape = RoundedCornerShape(22.dp),
+                    modifier = Modifier.fillMaxWidth().height(50.dp)
+                ) {
+                    Text("Borrar para mí")
+                }
+                OutlinedButton(
+                    onClick = {
+                        val target = current
+                        confirmingDelete = false
+                        if (target != null) scope.launch { onDelete(target, "para_todos") }
+                    },
+                    shape = RoundedCornerShape(22.dp),
+                    modifier = Modifier.fillMaxWidth().height(50.dp)
+                ) {
+                    Text("Borrar para todos")
+                }
+                TextButton(
+                    onClick = { confirmingDelete = false },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Eliminar") }
+            }
         }
     }
 
     val editTarget = editing
     if (editTarget != null) {
+        EditorScreen(
+            media = editTarget,
+            loader = loader,
+            onClose = { editing = null },
+            onSaved = { name ->
+                editing = null
+                message = "Copia guardada en DCIM/Camera: $name"
+            }
+        )
+        return
+    }
         EditorScreen(
             media = editTarget,
             loader = loader,
@@ -329,7 +362,7 @@ fun ViewerScreen(
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(start = 10.dp, top = 4.dp, bottom = 10.dp)
             )
-            androidx.compose.material3.OutlinedTextField(
+            OutlinedTextField(
                 value = newFolderName,
                 onValueChange = { newFolderName = it },
                 label = { Text("Nombre de la carpeta") },
@@ -348,7 +381,7 @@ fun ViewerScreen(
                     onClick = { showNewFolder = false },
                     modifier = Modifier.weight(1f)
                 ) { Text("Cancelar") }
-                androidx.compose.material3.Button(
+                Button(
                     onClick = {
                         if (newFolderName.isNotBlank()) {
                             onCreateFolder(newFolderName.trim())
@@ -467,6 +500,7 @@ private fun BottomActionBar(
     onDownload: () -> Unit,
     onEdit: () -> Unit,
     onFavorite: () -> Unit,
+    onDelete: () -> Unit,
     onDetails: () -> Unit,
     onCopyLink: () -> Unit,
     onRefresh: () -> Unit,
@@ -515,6 +549,12 @@ private fun BottomActionBar(
                 label = "Descargar",
                 enabled = !busy,
                 onClick = onDownload
+            )
+
+            ExpressiveAction(
+                iconRes = R.drawable.ic_kuze_delete,
+                label = "Eliminar",
+                onClick = onDelete
             )
 
             ExpressiveAction(
@@ -679,23 +719,21 @@ private fun ZoomableImage(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(media.id) {
-                    // Un toque responde al instante; el doble toque se detecta aparte
-                    // para no esperar el retraso del sistema.
+                    // Un solo gesto: toque, doble toque y zoom/arrastre. Como no consume
+                    // el toque simple, el gesto de deslizar entre fotos sigue funcionando
+                    // cuando la foto no está ampliada.
                     detectTapGestures(
-                        onTap = {
-                            val now = System.currentTimeMillis()
-                            if (now - lastTap < 300L) {
-                                lastTap = 0L
-                                if (scale > 1f) {
-                                    scale = 1f
-                                    offset = Offset.Zero
-                                } else {
-                                    scale = 2.5f
-                                }
+                        onDoubleTap = {
+                            if (scale > 1f) {
+                                scale = 1f
+                                offset = Offset.Zero
                             } else {
-                                lastTap = now
-                                tap.value()
+                                scale = 2.5f
                             }
+                        },
+                        onTap = {
+                            lastTap = System.currentTimeMillis()
+                            tap.value()
                         }
                     )
                 }

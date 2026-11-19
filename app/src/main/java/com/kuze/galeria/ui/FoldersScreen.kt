@@ -44,9 +44,7 @@ fun FoldersScreen(
     loader: ImageLoader,
     thumbUrlsFor: (Media) -> List<String>,
     virtualFolders: Map<String, Set<String>>,
-    onOpenFolder: (String) -> Unit,
-    onCreateFolder: (String) -> Unit,
-    onMoveToFolder: (Media, String) -> Unit
+    onOpenFolder: (String) -> Unit
 ) {
     val albums = remember(items) {
         items.groupBy { it.folder }

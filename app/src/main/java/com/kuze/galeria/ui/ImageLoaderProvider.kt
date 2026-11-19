@@ -9,16 +9,21 @@ import java.io.File
 
 /**
  * Cargador de miniaturas: usa el mismo cliente con usuario y clave del servidor,
- * y guarda hasta 500 MB de miniaturas en el teléfono.
+ * guarda hasta 100 MB de miniaturas en el teléfono y tira lo más viejo automáticamente.
  */
 fun buildImageLoader(context: Context, client: OkHttpClient): ImageLoader =
     ImageLoader.Builder(context)
         .okHttpClient(client)
         .respectCacheHeaders(false)
+        .memoryCache {
+            MemoryCache.Builder(context)
+                .maxSizePercent(0.10f)
+                .build()
+        }
         .diskCache {
             DiskCache.Builder()
                 .directory(File(context.cacheDir, "img"))
-                .maxSizeBytes(500L * 1024L * 1024L)
+                .maxSizeBytes(100L * 1024L * 1024L)
                 .build()
         }
         .crossfade(true)
@@ -36,7 +41,7 @@ fun buildViewerLoader(context: Context, client: OkHttpClient): ImageLoader =
         .diskCache(null)
         .memoryCache {
             MemoryCache.Builder(context)
-                .maxSizePercent(0.12)
+                .maxSizePercent(0.12f)
                 .build()
         }
         .crossfade(true)

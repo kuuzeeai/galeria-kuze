@@ -48,7 +48,6 @@ class MediaRepository(private val api: ServerApi) {
                 val baseCols = arrayOf(
                     MediaStore.MediaColumns._ID,
                     MediaStore.MediaColumns.DISPLAY_NAME,
-                    MediaStore.MediaColumns.DATA,
                     MediaStore.MediaColumns.DATE_MODIFIED,
                     MediaStore.MediaColumns.BUCKET_DISPLAY_NAME
                 )
@@ -81,14 +80,12 @@ class MediaRepository(private val api: ServerApi) {
         cursor?.use { c ->
             val idxId = c.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
             val idxName = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
-            val idxData = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)
-            val idxDate = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
+                        val idxDate = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
             val idxBucket = c.getColumnIndexOrThrow(MediaStore.MediaColumns.BUCKET_DISPLAY_NAME)
             while (c.moveToNext()) {
                 val id = c.getString(idxId)
                 val name = c.getString(idxName)
-                val data = c.getString(idxData)
-                val modified = c.getLong(idxDate)
+                                val modified = c.getLong(idxDate)
                 val bucket = c.getString(idxBucket)
                 val uri: Uri = if (isVideo) {
                     ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id.toLong())

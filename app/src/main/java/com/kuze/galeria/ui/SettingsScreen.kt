@@ -59,9 +59,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import android.os.Environment
 import com.kuze.galeria.data.DEFAULT_URL
 import com.kuze.galeria.data.ServerApi
 import com.kuze.galeria.data.SettingsStore
+import java.io.File
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -103,6 +105,9 @@ fun SettingsScreen(
     var themeOpen by remember { mutableStateOf(false) }
     var fontOpen by remember { mutableStateOf(false) }
     var gridOpen by remember { mutableStateOf(false) }
+    var backupOpen by remember { mutableStateOf(false) }
+    var backupMessage by remember { mutableStateOf<String?>(null) }
+        activity?.registerFor法
 
     val localModeOptions = listOf(
         LocalModeOption("ambos", "Ambos", "Servidor y teléfono juntos"),
@@ -447,6 +452,61 @@ fun SettingsScreen(
                     Text(
                         text = "Al cambiar de filas se descarga solo la miniatura de ese tamaño.\n" +
                             "En el teléfono solo se guardan miniaturas: las fotos completas se ven sin ocupar espacio.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(Modifier.height(2.dp))
+                SettingsBubble(
+                    title = "Respaldo",
+                    summary = backupMessage ?: "Exportar o importar configuración",
+                    icon = Icons.Rounded.Dns,
+                    expanded = backupOpen,
+                    onToggle = { backupOpen = !backupOpen }
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                val file = File(
+                                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                                    "galeria-kuze-respaldo.json"
+                                )
+                                scope.launch {
+                                    val result = settings.exportConfig(file)
+                                    result.onSuccess { backupMessage = "Guardado en Descargas" }
+                                        .onFailure { backupMessage = "Error: ${it.message}" }
+                                }
+                            },
+                            shape = RoundedCornerShape(22.dp),
+                            modifier = Modifier.weight(1f).height(50.dp)
+                        ) { Text("Exportar") }
+                        Button(
+                            onClick = {
+                                val file = File(
+                                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                                    "galeria-kuze-respaldo.json"
+                                )
+                                if (!file.exists()) {
+                                    backupMessage = "No hay respaldo en Descargas"
+                                } else {
+                                    scope.launch {
+                                        val result = settings.importConfig(file)
+                                        result.onSuccess { backupMessage = "Configuración restaurada" }
+                                            .onFailure { backupMessage = "Error: ${it.message}" }
+                                    }
+                                }
+                            },
+                            shape = RoundedCornerShape(22.dp),
+                            modifier = Modifier.weight(1f).height(50.dp)
+                        ) { Text("Importar") }
+                    }
+                    Text(
+                        text = "Se guardan URL, usuario, tema, fuente, columnas, favoritos " +
+                            "y carpetas virtuales. La clave del servidor no se incluye por seguridad.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

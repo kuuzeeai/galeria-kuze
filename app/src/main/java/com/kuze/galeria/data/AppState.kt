@@ -9,6 +9,8 @@ import java.io.File
 import java.io.IOException
 import kotlin.comparisons.compareByDescending
 import com.kuze.galeria.ui.downloadMediaToGallery
+import kotlinx.coroutines.Dispatchers
+import okhttp3.Request
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
@@ -98,23 +100,35 @@ class AppState(context: Context) {
         settings.virtualFolders = next
     }
 
-    fun removeFromVirtualFolders(media: Media) {
-        val next = virtualFolders.mapValues { it.value.toMutableSet() }.toMutableMap()
-        var changed = false
-        next.values.forEach { if (it.remove(media.path)) changed = true }
-        if (changed) {
-            virtualFolders = next
-            settings.virtualFolders = next
-        }
-    }
-
-    fun mediaInVirtualFolder(folderName: String): List<Media> {
-        val paths = virtualFolders[folderName] ?: return emptyList()
-        return items.filter { it.path in paths }
-    }
-
     suspend fun downloadMedia(media: Media): Result<String> =
         downloadMediaToGallery(context, api, media)
+
+    /**
+     * Intenta borrar el archivo físico del servidor con un DELETE HTTP.
+     * miniserve 0.35 no hace DELETE, así que la mayoría de las veces falla.
+     * Si falla, la foto se oculta igual de la galería (borrar para mí).
+     */
+    suspend fun deleteOnServer(media: Media): Boolean = withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val url = media.url ?: return@withContext false
+        val request = okhttp3.Request.Builder().url(url).delete().build()
+        runCatching {
+            api.client.newCall(request).execute().use { it.isSuccessful }
+        }.getOrNull() ?: false
+    }
+
+    /** Oculta una foto de la galería: se quita de la vista pero el archivo queda en el servidor. */
+    fun hideMedia(media: Media) {
+        val next = settings.hiddenPaths + media.path
+        settings.hiddenPaths = next
+    }
+
+    /** Muestra de nuevo una foto que estaba oculta. */
+    fun unhideMedia(media: Media) {
+        val next = settings.hiddenPaths - media.path
+        settings.hiddenPaths = next
+    }
+
+    fun isHidden(media: Media): Boolean = media.path in settings.hiddenPaths
 
     fun toggleTheme() {
         darkTheme = !darkTheme

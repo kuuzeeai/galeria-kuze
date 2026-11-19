@@ -99,7 +99,15 @@ private fun GaleriaApp(state: AppState) {
     }
     var viewer by remember { mutableStateOf<ViewerTarget?>(null) }
     var album by remember { mutableStateOf<String?>(null) }
+    var message by remember { mutableStateOf<String?>(null) }
     val gridState = rememberLazyGridState()
+
+    LaunchedEffect(message) {
+        if (message != null) {
+            delay(3600)
+            message = null
+        }
+    }
 
     // El botón y el gesto de atrás vuelven a la pantalla anterior, no cierran la app.
     BackHandler(enabled = viewer != null || album != null || screen == Screen.Settings) {
@@ -149,6 +157,22 @@ private fun GaleriaApp(state: AppState) {
                     onRefresh = { scope.launch { state.refresh() } },
                     onDownload = { scope.launch { state.downloadMedia(it) } },
                     onShare = { scope.launch { shareMedia(state.context, state.api, it) } },
+                    onDelete = { media, mode ->
+                        scope.launch {
+                            if (mode == "para_mi") {
+                                state.hideMedia(media)
+                                message = "Ocultada de la galería"
+                            } else {
+                                val ok = state.deleteOnServer(media)
+                                if (ok) {
+                                    state.hideMedia(media)
+                                    message = "Borrada del servidor"
+                                } else {
+                                    message = "El servidor no permite borrar (miniserve no hace DELETE)"
+                                }
+                            }
+                        }
+                    },
                     onCreateFolder = { name ->
                         scope.launch { state.createVirtualFolder(name) }
                     },
@@ -168,9 +192,7 @@ private fun GaleriaApp(state: AppState) {
                     onOpen = { list, index -> viewer = ViewerTarget(list, index) },
                     onSettings = { screen = Screen.Settings },
                     virtualFolders = state.virtualFolders,
-                    onCreateFolder = { name ->
-                        scope.launch { state.createVirtualFolder(name) }
-                    }
+                    toast = message
                 )
             }
         }
@@ -190,7 +212,7 @@ private fun LibraryScreen(
     onOpen: (List<Media>, Int) -> Unit,
     onSettings: () -> Unit,
     virtualFolders: Map<String, Set<String>>,
-    onCreateFolder: (String) -> Unit
+    toast: String? = null
 ) {
     val scope = rememberCoroutineScope()
     var tab by remember { mutableIntStateOf(0) }
@@ -201,15 +223,21 @@ private fun LibraryScreen(
         if (tab != 0) tab = 0 else filter = 0
     }
 
-    val base = remember(state.items, album) {
-        if (album == null) state.items else state.items.filter { it.folder == album }
+    val base = remember(state.items, album, state.virtualFolders) {
+        if (album == null) state.items
+        else {
+            val virtual = state.virtualFolders[album]
+            if (virtual != null) state.items.filter { it.path in virtual }
+            else state.items.filter { it.folder == album }
+        }
     }
-    val shown = remember(base, filter, state.favorites) {
+    val shown = remember(base, filter, state.favorites, state.hiddenPaths) {
+        val visible = base.filter { it.path !in state.hiddenPaths }
         when (filter) {
-            1 -> base.filter { !it.isVideo }
-            2 -> base.filter { it.isVideo }
-            3 -> base.filter { it.path in state.favorites }
-            else -> base
+            1 -> visible.filter { !it.isVideo }
+            2 -> visible.filter { it.isVideo }
+            3 -> visible.filter { it.path in state.favorites }
+            else -> visible
         }
     }
 
@@ -281,6 +309,25 @@ private fun LibraryScreen(
                 }
             }
 
+            val notice = toast
+            if (notice != null) {
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = MaterialTheme.colorScheme.inverseSurface,
+                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .fillMaxWidth(0.85f)
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        text = notice,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                    )
+                }
+            }
+
             PullToRefreshBox(
                 isRefreshing = state.loading,
                 onRefresh = { scope.launch { state.refresh() } },
@@ -330,13 +377,7 @@ private fun LibraryScreen(
                         loader = loader,
                         thumbUrlsFor = { state.api.thumbUrlsFor(it, 480) },
                         virtualFolders = state.virtualFolders,
-                        onOpenFolder = { folder -> onAlbumChange(folder) },
-                        onCreateFolder = { name ->
-                            state.createVirtualFolder(name)
-                        },
-                        onMoveToFolder = { media, folderName ->
-                            state.moveToVirtualFolder(media, folderName)
-                        }
+                        onOpenFolder = { folder -> onAlbumChange(folder) }
                     )
                 }
             }
