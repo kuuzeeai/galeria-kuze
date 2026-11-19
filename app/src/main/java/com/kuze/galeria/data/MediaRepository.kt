@@ -1,10 +1,10 @@
 package com.kuze.galeria.data
 
 import android.content.ContentResolver
+import android.content.ContentUris
 import android.content.Context
 import android.database.Cursor
 import android.net.Uri
-import android.provider.ContentUris
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

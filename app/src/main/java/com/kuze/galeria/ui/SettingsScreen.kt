@@ -309,7 +309,7 @@ fun SettingsScreen(
                 SettingsBubble(
                     title = "Local",
                     summary = localModeOptions.firstOrNull { it.id == localMode }?.label ?: "Ambos",
-                    icon = Icons.Default.Folder,
+                    icon = Icons.Filled.Folder,
                     expanded = localOpen,
                     onToggle = { localOpen = !localOpen }
                 ) {
