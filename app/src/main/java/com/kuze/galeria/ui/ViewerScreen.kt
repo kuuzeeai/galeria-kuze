@@ -1,14 +1,16 @@
 package com.kuze.galeria.ui
 
-import android.app.AlertDialog
 import android.content.Context
-import android.content.DialogInterface
-import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
 import android.widget.FrameLayout
 import android.widget.TextView
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,9 +27,11 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -45,10 +49,7 @@ import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -62,6 +63,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -158,7 +160,10 @@ fun ViewerScreen(
         folderNames = virtualFolders.keys.toList()
     }
 
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    var barsVisible by remember { mutableStateOf(true) }
+    val scheme = MaterialTheme.colorScheme
+
+    Box(Modifier.fillMaxSize().background(scheme.background)) {
         HorizontalPager(
             state = pagerState,
             userScrollEnabled = !zoomed,
@@ -168,80 +173,102 @@ fun ViewerScreen(
             if (media.isVideo) {
                 VideoPage(media = media, api = api)
             } else {
-                ZoomableImage(media = media, loader = loader) { isZoomed -> zoomed = isZoomed }
+                ZoomableImage(
+                    media = media,
+                    loader = loader,
+                    onZoomChange = { zoomed = it },
+                    onTap = { barsVisible = !barsVisible }
+                )
             }
         }
 
-        TopBar(
-            title = items.getOrNull(pagerState.currentPage)?.name.orEmpty(),
-            position = "${pagerState.currentPage + 1}/${items.size}",
-            onClose = onClose,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(12.dp)
-                .fillMaxWidth()
-        )
-
-        if (current != null) {
-            BottomActionBar(
-                media = current,
-                favorite = isFavorite(current),
-                busy = downloading,
-                onShare = { onShare(current) },
-                onDownload = {
-                    if (!downloading) {
-                        downloading = true
-                        scope.launch {
-                            downloadMediaToGallery(context, api, current)
-                                .onSuccess { name ->
-                                    message = "Guardado en Descargas/Galería: $name"
-                                }
-                                .onFailure {
-                                    message = "No se pudo descargar: ${it.message}"
-                                }
-                            downloading = false
-                        }
-                    }
-                },
-                onEdit = { editing = current },
-                onFavorite = { onToggleFavorite(current) },
-                onDelete = { confirmingDelete = true },
-                onDetails = { details = current },
-                onCopyLink = {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-                    clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("Enlace", current.url))
-                    message = "Enlace copiado"
-                },
-                onRefresh = {
-                    onRefresh()
-                    message = "Actualizando la galería…"
-                },
-                onCreateFolder = { showNewFolder = true },
-                onRequestMove = { showMoveDialog = true },
-                hasFolders = folderNames.isNotEmpty(),
+        val shown = current
+        if (shown != null) {
+            val date = remember(shown.id) { viewerDate(shown) }
+            AnimatedVisibility(
+                visible = barsVisible && !zoomed,
+                enter = fadeIn() + slideInVertically { -it },
+                exit = fadeOut() + slideOutVertically { -it },
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = 14.dp)
-            )
-        }
-
-        val notice = message
-        if (notice != null) {
-            Surface(
-                shape = RoundedCornerShape(22.dp),
-                color = Color.Black.copy(alpha = 0.75f),
-                contentColor = Color.White,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = 86.dp, start = 24.dp, end = 24.dp)
+                    .align(Alignment.TopCenter)
+                    .systemBarsPadding()
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
-                Text(
-                    text = notice,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                TopBar(
+                    title = date.first,
+                    subtitle = date.second,
+                    position = "${pagerState.currentPage + 1}/${items.size}",
+                    onClose = onClose,
+                    onShare = { onShare(shown) },
+                    modifier = Modifier.fillMaxWidth()
                 )
+            }
+
+            AnimatedVisibility(
+                visible = barsVisible && !zoomed,
+                enter = fadeIn() + slideInVertically { it },
+                exit = fadeOut() + slideOutVertically { it },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 10.dp)
+            ) {
+                BottomActionBar(
+                    media = shown,
+                    favorite = isFavorite(shown),
+                    busy = downloading,
+                    onShare = { onShare(shown) },
+                    onDownload = {
+                        if (!downloading) {
+                            downloading = true
+                            scope.launch {
+                                downloadMediaToGallery(context, api, shown)
+                                    .onSuccess { name ->
+                                        message = "Guardado en Descargas/Galería: $name"
+                                    }
+                                    .onFailure {
+                                        message = "No se pudo descargar: ${it.message}"
+                                    }
+                                downloading = false
+                            }
+                        }
+                    },
+                    onEdit = { editing = shown },
+                    onFavorite = { onToggleFavorite(shown) },
+                    onDelete = { confirmingDelete = true },
+                    onDetails = { details = shown },
+                    onCopyLink = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                        clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("Enlace", shown.url))
+                        message = "Enlace copiado"
+                    },
+                    onRefresh = {
+                        onRefresh()
+                        message = "Actualizando la galería…"
+                    },
+                    onCreateFolder = { showNewFolder = true },
+                    onRequestMove = { showMoveDialog = true },
+                    hasFolders = folderNames.isNotEmpty()
+                )
+            }
+
+            val notice = message
+            if (notice != null) {
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = scheme.inverseSurface,
+                    contentColor = scheme.inverseOnSurface,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(bottom = 96.dp, start = 24.dp, end = 24.dp)
+                ) {
+                    Text(
+                        text = notice,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                    )
+                }
             }
         }
     }
@@ -362,38 +389,65 @@ fun ViewerScreen(
 }
 
 @Composable
-private fun TopBar(title: String, position: String, onClose: () -> Unit, modifier: Modifier = Modifier) {
+private fun TopBar(
+    title: String,
+    subtitle: String,
+    position: String,
+    onClose: () -> Unit,
+    onShare: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scheme = MaterialTheme.colorScheme
     Surface(
         shape = RoundedCornerShape(28.dp),
-        color = Color.Black.copy(alpha = 0.32f),
-        contentColor = Color.White,
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.22f)),
-        shadowElevation = 10.dp,
+        color = scheme.surfaceContainerHigh.copy(alpha = 0.92f),
+        contentColor = scheme.onSurface,
+        border = BorderStroke(1.dp, scheme.outlineVariant.copy(alpha = 0.55f)),
+        shadowElevation = 8.dp,
         modifier = modifier
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onClose) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
+                Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = scheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
             Text(
-                text = title,
-                color = Color.White,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f).padding(start = 4.dp, end = 12.dp)
-            )
-            Text(
                 text = position,
-                color = Color.White.copy(alpha = 0.75f),
                 style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.padding(end = 12.dp)
+                color = scheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 4.dp)
             )
+            IconButton(onClick = onShare) {
+                Icon(Icons.Filled.Share, contentDescription = "Compartir")
+            }
         }
     }
+}
+
+/** Fecha y hora de la foto, con la carpeta, como en el ejemplo. */
+private fun viewerDate(media: Media): Pair<String, String> {
+    val zone = Instant.ofEpochMilli(media.modified).atZone(ZoneId.systemDefault())
+    val date = zone.format(DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", Locale.forLanguageTag("es")))
+    val time = zone.format(DateTimeFormatter.ofPattern("HH:mm", Locale.forLanguageTag("es")))
+    val place = media.folder.ifBlank { "Galería" }
+    return date.replaceFirstChar { it.uppercase() } to "$time · $place"
 }
 
 /**
@@ -421,12 +475,13 @@ private fun BottomActionBar(
 ) {
     var menu by remember { mutableStateOf(false) }
 
+    val scheme = MaterialTheme.colorScheme
     Surface(
         shape = RoundedCornerShape(30.dp),
-        color = Color.Black.copy(alpha = 0.30f),
-        contentColor = Color.White,
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.26f)),
-        shadowElevation = 14.dp,
+        color = scheme.surfaceContainerHigh.copy(alpha = 0.92f),
+        contentColor = scheme.onSurface,
+        border = BorderStroke(1.dp, scheme.outlineVariant.copy(alpha = 0.55f)),
+        shadowElevation = 10.dp,
         modifier = modifier
     ) {
         Row(
@@ -451,7 +506,7 @@ private fun BottomActionBar(
             ExpressiveAction(
                 icon = if (favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                 label = if (favorite) "Favorito" else "Favorito",
-                tint = if (favorite) FavoriteColor else Color.White,
+                tint = if (favorite) FavoriteColor else MaterialTheme.colorScheme.onSurface,
                 onClick = onFavorite
             )
 
@@ -466,7 +521,7 @@ private fun BottomActionBar(
                 ExpressiveAction(
                     icon = Icons.Filled.DeleteOutline,
                     label = "Eliminar",
-                    tint = Color.White.copy(alpha = 0.45f),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     onClick = onDelete
                 )
             }
@@ -540,7 +595,7 @@ private fun ExpressiveAction(
     icon: ImageVector,
     label: String,
     onClick: () -> Unit,
-    tint: Color = Color.White,
+    tint: Color = MaterialTheme.colorScheme.onSurface,
     enabled: Boolean = true
 ) {
     Column(
@@ -557,15 +612,8 @@ private fun ExpressiveAction(
         }
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 9.sp,
-                shadow = androidx.compose.ui.graphics.Shadow(
-                    color = Color.Black.copy(alpha = 0.6f),
-                    offset = androidx.compose.ui.geometry.Offset(0f, 1f),
-                    blurRadius = 3f
-                )
-            ),
-            color = Color.White.copy(alpha = if (enabled) 1f else 0.5f),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.5f),
             maxLines = 1,
             modifier = Modifier.padding(top = 1.dp)
         )
@@ -623,18 +671,14 @@ private fun formatDate(timestamp: Long): String {
 private fun ZoomableImage(
     media: Media,
     loader: ImageLoader,
-    onZoomChange: (Boolean) -> Unit
+    onZoomChange: (Boolean) -> Unit,
+    onTap: () -> Unit
 ) {
     var scale by remember(media.id) { mutableStateOf(1f) }
     var offset by remember(media.id) { mutableStateOf(Offset.Zero) }
+    val tap = rememberUpdatedState(onTap)
 
     LaunchedEffect(scale) { onZoomChange(scale > 1.01f) }
-
-    val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-        val next = (scale * zoomChange).coerceIn(1f, 6f)
-        scale = next
-        offset = if (next <= 1f) Offset.Zero else offset + panChange
-    }
 
     Box(Modifier.fillMaxSize()) {
         AsyncImage(
@@ -652,6 +696,7 @@ private fun ZoomableImage(
                 .fillMaxSize()
                 .pointerInput(media.id) {
                     detectTapGestures(
+                        onTap = { tap.value() },
                         onDoubleTap = {
                             if (scale > 1f) {
                                 scale = 1f
@@ -662,7 +707,26 @@ private fun ZoomableImage(
                         }
                     )
                 }
-                .transformable(transformState)
+                .pointerInput(media.id) {
+                    // Solo se queda con el gesto cuando hace zoom o la foto ya está
+                    // ampliada; si no, deja pasar el deslizamiento a las otras fotos.
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        var pressed = true
+                        while (pressed) {
+                            val event = awaitPointerEvent()
+                            val zoomChange = event.calculateZoom()
+                            val panChange = event.calculatePan()
+                            if (zoomChange != 1f || scale > 1f) {
+                                val next = (scale * zoomChange).coerceIn(1f, 6f)
+                                scale = next
+                                offset = if (next <= 1f) Offset.Zero else offset + panChange
+                                event.changes.forEach { if (it.pressed) it.consume() }
+                            }
+                            pressed = event.changes.any { it.pressed }
+                        }
+                    }
+                }
                 .graphicsLayer(
                     scaleX = scale,
                     scaleY = scale,

@@ -180,23 +180,18 @@ Se arreglaron los errores de compilación: import duplicado y código basura en 
 en AppState y `mediaInFolder` en FoldersScreen.
 
 ### Hecho el 2026-11-19
-1. Recorte: se abandonó ucrop (no abría) y ahora hay pantalla propia (`ui/CropScreen.kt`)
-   con marco arrastrable, esquinas, cuadrícula y botón Recortar. Se quitó la dependencia
-   de ucrop y el repositorio JitPack.
-2. Firma fija: `app/keystore/debug.keystore` + `signingConfigs` en `app/build.gradle.kts`.
-   Ya no hay que desinstalar la APK al actualizar.
-3. Descargas en `Download/Galería` (colección `MediaStore.Downloads`). La copia editada
-   sigue yendo a `DCIM/Camera`.
-4. Menú del visor ahora es hoja inferior estilo Expressive (`ui/ExpressiveMenu.kt`) en vez
-   del desplegable de Android; el botón de descarga usa flecha hacia abajo.
-5. Barra inferior del visor tipo cristal (negra semitransparente, borde claro, sombra) con
-   acciones: compartir, editar, favorito, descargar, eliminar, más. Compartir ahora sí
-   comparte (`shareMedia`) y Descargar descarga.
-6. Botón y gesto de atrás vuelven a la pantalla anterior (`BackHandler` en MainActivity).
-7. La cuadrícula conserva la posición al salir del visor (`LazyGridState` compartido).
-8. Paleta AMOLED (negro puro) y colores de hojas/superficies por paleta.
+1. Visor estilo iOS: barra superior con fecha, hora y carpeta + botón compartir; barra
+   inferior con las acciones. Ambas flotan con color del tema, se ocultan al tocar la foto
+   y desaparecen al hacer zoom. Fondo del visor con el color del tema.
+2. Deslizar entre fotos: el gesto de zoom ya no bloquea el pager cuando la foto está normal.
+3. Atrás: desde Carpetas o desde un filtro vuelve a la galería; desde una carpeta o el
+   visor vuelve a la pantalla anterior.
+4. Recorte: el marco ya se puede mover y estirar (antes cada movimiento reiniciaba el
+   gesto); tocar fuera del marco crea uno nuevo. Recorte propio en `ui/CropScreen.kt`.
+5. Descargas en `Download/Galería`; la copia editada sigue en `DCIM/Camera`.
+6. Firma fija para actualizar sin desinstalar, paleta AMOLED y hojas estilo Expressive.
 
 ### Pendientes
 1. Etapa 6 (borrar): sigue sin implementarse, ver sección 7.
-2. Probar en el teléfono: recorte, barra de cristal, atrás, AMOLED y que la APK se
-   instale encima de la anterior sin desinstalar.
+2. Probar en el teléfono: deslizar entre fotos, recorte arrastrando, barras al tocar,
+   atrás desde carpetas y que la APK se instale encima sin desinstalar.

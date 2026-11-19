@@ -30,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +46,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -68,6 +70,10 @@ fun CropScreen(
     }
     var crop by remember { mutableStateOf(Rect.Zero) }
     var mode by remember { mutableStateOf(CropMode.None) }
+    var anchor by remember { mutableStateOf(Offset.Zero) }
+    // El gesto lee siempre el último marco: si no, cada movimiento reinicia el arrastre.
+    val cropState = rememberUpdatedState(crop)
+    val boundsState = rememberUpdatedState(imageRect)
 
     LaunchedEffect(imageRect) {
         if (imageRect.width > 0f && imageRect.height > 0f) {
@@ -125,21 +131,30 @@ fun CropScreen(
                 Canvas(
                     modifier = Modifier
                         .fillMaxSize()
-                        .pointerInput(imageRect, crop, handleRadius) {
+                        .pointerInput(handleRadius, minSize) {
                             detectDragGestures(
                                 onDragStart = { start ->
-                                    mode = hitTest(start, crop, imageRect, handleRadius)
+                                    val bounds = boundsState.value
+                                    mode = hitTest(start, cropState.value, bounds, handleRadius)
+                                    // Tocar fuera del marco y arrastrar crea uno nuevo.
+                                    if (mode == CropMode.None && bounds.contains(start)) {
+                                        anchor = start
+                                        mode = CropMode.NewRect
+                                    }
                                 },
                                 onDragEnd = { mode = CropMode.None },
                                 onDragCancel = { mode = CropMode.None },
                                 onDrag = { change, drag ->
                                     change.consume()
-                                    if (imageRect.width <= 0f) return@detectDragGestures
+                                    val bounds = boundsState.value
+                                    if (bounds.width <= 0f) return@detectDragGestures
                                     crop = applyDrag(
-                                        crop = crop,
-                                        bounds = imageRect,
+                                        crop = cropState.value,
+                                        bounds = bounds,
                                         mode = mode,
                                         drag = drag,
+                                        pointer = change.position,
+                                        anchor = anchor,
                                         minSize = minSize
                                     )
                                 }
@@ -237,7 +252,7 @@ fun CropScreen(
     }
 }
 
-private enum class CropMode { None, Move, TopLeft, TopRight, BottomLeft, BottomRight }
+private enum class CropMode { None, Move, NewRect, TopLeft, TopRight, BottomLeft, BottomRight }
 
 private fun fitRect(bitmapWidth: Int, bitmapHeight: Int, container: IntSize): Rect {
     if (bitmapWidth <= 0 || bitmapHeight <= 0 || container.width <= 0 || container.height <= 0) {
@@ -279,6 +294,8 @@ private fun applyDrag(
     bounds: Rect,
     mode: CropMode,
     drag: Offset,
+    pointer: Offset,
+    anchor: Offset,
     minSize: Float
 ): Rect {
     if (mode == CropMode.None) return crop
@@ -291,6 +308,14 @@ private fun applyDrag(
             val dx = drag.x.coerceIn(bounds.left - crop.left, bounds.right - crop.right)
             val dy = drag.y.coerceIn(bounds.top - crop.top, bounds.bottom - crop.bottom)
             crop.translate(dx, dy)
+        }
+
+        CropMode.NewRect -> {
+            val left = min(anchor.x, pointer.x).coerceIn(bounds.left, bounds.right - minSize)
+            val top = min(anchor.y, pointer.y).coerceIn(bounds.top, bounds.bottom - minSize)
+            val right = max(anchor.x, pointer.x).coerceIn(left + minSize, bounds.right)
+            val bottom = max(anchor.y, pointer.y).coerceIn(top + minSize, bounds.bottom)
+            Rect(left, top, right, bottom)
         }
 
         CropMode.TopLeft -> {

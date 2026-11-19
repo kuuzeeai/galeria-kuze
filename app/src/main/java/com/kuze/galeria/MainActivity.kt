@@ -194,6 +194,11 @@ private fun LibraryScreen(
     var tab by remember { mutableIntStateOf(0) }
     var filter by remember { mutableIntStateOf(0) }
 
+    // Atrás desde Carpetas o desde un filtro vuelve a la galería, no cierra la app.
+    BackHandler(enabled = album == null && (tab != 0 || filter != 0)) {
+        if (tab != 0) tab = 0 else filter = 0
+    }
+
     val base = remember(state.items, album) {
         if (album == null) state.items else state.items.filter { it.folder == album }
     }
