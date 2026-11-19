@@ -236,6 +236,7 @@ fun ViewerScreen(
                     },
                     onEdit = { editing = shown },
                     onFavorite = { onToggleFavorite(shown) },
+                    onDelete = { confirmingDelete = true },
                     onDetails = { details = shown },
                     onCopyLink = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
