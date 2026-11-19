@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
+import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -23,7 +24,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -324,7 +326,7 @@ fun ViewerScreen(
                     folderNames.forEach { folder ->
                         TextButton(
                             onClick = {
-                                onMoveItem(current, folder)
+                                onMoveToFolder(current, folder)
                                 showMoveDialog = false
                                 movingToFolder = folder
                                 message = "Movido a '$folder'"
@@ -501,7 +503,6 @@ private fun BottomActionBar(
                             leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
                             onClick = { menu = false; showNewFolder = true }
                         )
-                        )
                         DropdownMenuItem(
                             text = { Text("Mover a carpeta") },
                             leadingIcon = { Icon(Icons.Filled.DeleteOutline, contentDescription = null) },
@@ -560,8 +561,6 @@ private fun ExpressiveAction(
         )
     }
 }
-
-private fun dp(text: String): androidx.compose.ui.unit.Dp = with(androidx.compose.ui.unit.Dp) { }
 
 @Composable
 private fun DetailsDialog(media: Media, onDismiss: () -> Unit) {

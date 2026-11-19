@@ -85,7 +85,7 @@ class AppState(context: Context) {
         val next = virtualFolders.mapValues { it.value.toMutableSet() }.toMutableMap()
         // Se "mueve": sale de todas las carpetas virtuales y entra en la elegida.
         next.values.forEach { it.remove(media.path) }
-        next[folderName] = (next[folderName] ?: emptySet()) + media.path
+        next[folderName] = ((next[folderName] ?: mutableSetOf()) + media.path).toMutableSet()
         virtualFolders = next
         settings.virtualFolders = next
     }
