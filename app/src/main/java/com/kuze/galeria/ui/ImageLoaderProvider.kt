@@ -17,13 +17,13 @@ fun buildImageLoader(context: Context, client: OkHttpClient): ImageLoader =
         .respectCacheHeaders(false)
         .memoryCache {
             MemoryCache.Builder(context)
-                .maxSizeBytes(16L * 1024L * 1024L)
+                .maxSizeBytes(16 * 1024 * 1024)
                 .build()
         }
         .diskCache {
             DiskCache.Builder()
                 .directory(File(context.cacheDir, "img"))
-                .maxSizeBytes(100L * 1024L * 1024L)
+                .maxSizeBytes(100 * 1024 * 1024)
                 .build()
         }
         .crossfade(true)
@@ -41,7 +41,7 @@ fun buildViewerLoader(context: Context, client: OkHttpClient): ImageLoader =
         .diskCache(null)
         .memoryCache {
             MemoryCache.Builder(context)
-                .maxSizeBytes(24L * 1024L * 1024L)
+                .maxSizeBytes(24 * 1024 * 1024)
                 .build()
         }
         .crossfade(true)
