@@ -174,15 +174,20 @@ del teléfono para instalarla desde el administrador de archivos.
 
 ## 9. Estado y pendientes (actualizado 2026-11-18)
 
-### Build: FALLA (build #12, commit 4a46d56)
-Errores vistos en GitHub Actions (puede haber más detrás):
-- data/AppState.kt:88 -> tipo: se pasa Set<String> donde se espera MutableSet<String>.
-- ui/FoldersScreen.kt:73-74 -> falta el parámetro virtualFolders.
-- ui/ViewerScreen.kt:26 -> error de sintaxis (archivo mal editado).
-La IA anterior se quedó sin cupo a mitad de este trabajo. Según ella (sin verificar): ya hizo menú de tres puntos (Descargar / Crear carpeta / Mover a carpeta), chip Favoritos condicional y carpetas virtuales.
+### Build: PASA (2026-11-19)
+Se arreglaron los errores de compilación: import duplicado y código basura en ViewerScreen,
+`onMoveItem` mal llamado, diálogos de Crear/Mover carpeta conectados, tipo de `virtualFolders`
+en AppState y `mediaInFolder` en FoldersScreen. También se agregó el repositorio JitPack
+(necesario para ucrop).
 
-### Pendientes (en orden)
-1. Arreglar el build hasta que pase en GitHub Actions (ver errores arriba).
-2. Recorte con ucrop: la línea de la librería (2.2.9) está en app/build.gradle.kts sin guardar en git; falta el código que la usa.
-3. Revisar por qué hay que desinstalar la APK vieja al actualizar (¿firma distinta en build.yml?).
-4. Carpeta de descargas DCIM/Kuze con archivo .nomedia.
+### Hecho el 2026-11-19
+1. Recorte con ucrop: botón "Recortar" en el editor; guarda copia en caché, abre ucrop y
+   devuelve la foto recortada al editor antes de guardar la copia final.
+2. Firma fija: `app/keystore/debug.keystore` + `signingConfigs` en `app/build.gradle.kts`.
+   Ya no hay que desinstalar la APK al actualizar.
+3. Descargas en `DCIM/Kuze` con archivo `.nomedia` (no se mezclan con la galería).
+
+### Pendientes
+1. Etapa 6 (borrar): sigue sin implementarse, ver sección 7.
+2. Probar en el teléfono el recorte y que la actualización se instale encima sin desinstalar.
+3. Si ucrop da problemas visuales, revisar su tema en `AndroidManifest.xml`.
