@@ -8,6 +8,7 @@ import android.provider.ContentUris
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.comparisons.compareByDescending
 
 /**
  * Recorre todas las carpetas del servidor una sola vez y devuelve la lista completa.
@@ -36,6 +37,7 @@ class MediaRepository(private val api: ServerApi) {
 
             collected.distinctBy { it.path }
                 .sortedWith(compareByDescending<Media> { it.modified }.thenBy { it.name })
+        }
 
     /** Lee fotos y videos guardados en el teléfono (galería local). Devuelve vacío si no hay permiso. */
     suspend fun loadLocal(context: Context): List<Media> =
