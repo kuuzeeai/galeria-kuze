@@ -32,7 +32,7 @@ const val GALLERY_FOLDER = "DCIM/Camera"
 
 /** Carpeta donde se guardan las descargas: Download/Galería. */
 const val DOWNLOADS_FOLDER_NAME = "Galería"
-const val DOWNLOADS_RELATIVE = "Galería"
+const val DOWNLOADS_RELATIVE = "Download/Galería"
 
 /** Descarga el archivo a una carpeta temporal y abre el menú de compartir de Android. */
 suspend fun shareMedia(context: Context, api: ServerApi, media: Media): Result<Unit> =

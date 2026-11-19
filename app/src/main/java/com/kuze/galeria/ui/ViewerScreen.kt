@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.MoreVert
@@ -215,14 +216,6 @@ fun ViewerScreen(
                     onRefresh()
                     message = "Actualizando la galería…"
                 },
-                onMoveItem = { mediaItem, folderName ->
-                    movingToFolder = folderName
-                    scope.launch {
-                        onMoveToFolder(mediaItem, folderName)
-                        message = "Movido a la carpeta '$folderName'"
-                        movingToFolder = null
-                    }
-                },
                 onCreateFolder = { showNewFolder = true },
                 onRequestMove = { showMoveDialog = true },
                 hasFolders = folderNames.isNotEmpty(),
@@ -261,19 +254,24 @@ fun ViewerScreen(
     }
 
     if (confirmingDelete) {
-        AlertDialog(
-            onDismissRequest = { confirmingDelete = false },
-            title = { Text("Eliminar") },
-            text = {
-                Text(
-                    "Este botón todavía no está activado. Cuando lo activemos podrás borrar " +
-                        "la foto del servidor, con confirmación previa."
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { confirmingDelete = false }) { Text("Entendido") }
-            }
-        )
+        ExpressiveSheet(onDismiss = { confirmingDelete = false }) {
+            Text(
+                text = "Eliminar",
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(start = 10.dp, top = 4.dp, bottom = 8.dp)
+            )
+            Text(
+                text = "Este botón todavía no está activado. Cuando lo activemos podrás borrar " +
+                    "la foto del servidor, con confirmación previa.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 10.dp)
+            )
+            TextButton(
+                onClick = { confirmingDelete = false },
+                modifier = Modifier.padding(top = 8.dp)
+            ) { Text("Entendido") }
+        }
     }
 
     val editTarget = editing
@@ -289,70 +287,77 @@ fun ViewerScreen(
         )
     }
 
-    val folderTarget = movingToFolder
-    if (folderTarget != null) {
-        Unit
-    }
-
-    // Diálogo: crear carpeta
+    // Hoja: crear carpeta
     if (showNewFolder) {
-        AlertDialog(
-            onDismissRequest = { showNewFolder = false },
-            title = { Text("Crear carpeta") },
-            text = {
-                androidx.compose.material3.OutlinedTextField(
-                    value = newFolderName,
-                    onValueChange = { newFolderName = it },
-                    label = { Text("Nombre de la carpeta") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (newFolderName.isNotBlank()) {
-                        onCreateFolder(newFolderName.trim())
-                        newFolderName = ""
-                        showNewFolder = false
-                    }
-                }) { Text("Crear") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showNewFolder = false }) { Text("Cancelar") }
+        ExpressiveSheet(onDismiss = { showNewFolder = false }) {
+            Text(
+                text = "Crear carpeta",
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(start = 10.dp, top = 4.dp, bottom = 10.dp)
+            )
+            androidx.compose.material3.OutlinedTextField(
+                value = newFolderName,
+                onValueChange = { newFolderName = it },
+                label = { Text("Nombre de la carpeta") },
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 6.dp)
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                TextButton(
+                    onClick = { showNewFolder = false },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Cancelar") }
+                androidx.compose.material3.Button(
+                    onClick = {
+                        if (newFolderName.isNotBlank()) {
+                            onCreateFolder(newFolderName.trim())
+                            newFolderName = ""
+                            showNewFolder = false
+                        }
+                    },
+                    enabled = newFolderName.isNotBlank(),
+                    shape = RoundedCornerShape(22.dp),
+                    modifier = Modifier.weight(1f)
+                ) { Text("Crear") }
             }
-        )
+        }
     }
 
-    // Diálogo: mover a carpeta
+    // Hoja: mover a carpeta
     if (showMoveDialog && current != null) {
-        AlertDialog(
-            onDismissRequest = { showMoveDialog = false },
-            title = { Text("Mover a carpeta") },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    folderNames.forEach { folder ->
-                        TextButton(
-                            onClick = {
-                                onMoveToFolder(current, folder)
-                                showMoveDialog = false
-                                movingToFolder = folder
-                                message = "Movido a '$folder'"
-                            }
-                        ) {
-                            Text(folder, style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
-                    if (folderNames.isEmpty()) {
-                        Text("Todavía no hay carpetas creadas.", style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showMoveDialog = false }) { Text("Cerrar") }
+        ExpressiveSheet(onDismiss = { showMoveDialog = false }) {
+            Text(
+                text = "Mover a carpeta",
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(start = 10.dp, top = 4.dp, bottom = 8.dp)
+            )
+            if (folderNames.isEmpty()) {
+                Text(
+                    text = "Todavía no hay carpetas creadas.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+                )
             }
-        )
+            folderNames.forEach { folder ->
+                ExpressiveSheetItem(
+                    icon = Icons.Filled.Folder,
+                    label = folder,
+                    onClick = {
+                        onMoveToFolder(current, folder)
+                        showMoveDialog = false
+                        message = "Movido a '$folder'"
+                    }
+                )
+            }
+        }
     }
 }
 
@@ -569,22 +574,43 @@ private fun ExpressiveAction(
 
 @Composable
 private fun DetailsDialog(media: Media, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Detalles") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(media.name, style = MaterialTheme.typography.titleSmall)
-                Text("Carpeta: ${media.folder.ifBlank { "Raíz" }}")
-                Text("Tipo: ${if (media.isVideo) "Video" else "Foto"}")
-                Text("Fecha: ${formatDate(media.modified)}")
-                Text(media.url, style = MaterialTheme.typography.labelSmall)
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Cerrar") }
+    ExpressiveSheet(onDismiss = onDismiss) {
+        Text(
+            text = "Detalles",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(start = 10.dp, top = 4.dp, bottom = 8.dp)
+        )
+        Column(
+            modifier = Modifier.padding(horizontal = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(media.name, style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Carpeta: ${media.folder.ifBlank { "Raíz" }}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                "Tipo: ${if (media.isVideo) "Video" else "Foto"}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                "Fecha: ${formatDate(media.modified)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                media.url,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
-    )
+        TextButton(
+            onClick = onDismiss,
+            modifier = Modifier.padding(top = 10.dp)
+        ) { Text("Cerrar") }
+    }
 }
 
 private fun formatDate(timestamp: Long): String {
