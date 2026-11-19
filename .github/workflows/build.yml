@@ -9,26 +9,6 @@ permissions:
   contents: read
 
 jobs:
-  keystore:
-    name: Genera keystore fija de depuracion
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Create debug keystore
-        run: |
-          mkdir -p out
-          keytool -genkeypair -v \
-            -keystore out/debug.keystore \
-            -storetype JKS \
-            -storepass kuze2026 -keypass kuze2026 \
-            -alias galeriakuze -keyalg RSA -keysize 2048 -validity 10950 \
-            -dname "CN=Galeria Kuze, OU=Kuze, O=Kuze, L=Cali, ST=Valle, C=CO"
-      - name: Upload keystore
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-keystore
-          path: out/debug.keystore
-
   build:
     name: Build and upload debug APK
     runs-on: ubuntu-latest

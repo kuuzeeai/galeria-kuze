@@ -18,7 +18,19 @@ android {
         versionName = "1.4"
     }
 
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("keystore/debug.keystore")
+            storePassword = "kuze2026"
+            keyAlias = "galeriakuze"
+            keyPassword = "kuze2026"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
         }
