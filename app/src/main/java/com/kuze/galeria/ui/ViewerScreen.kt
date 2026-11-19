@@ -217,6 +217,9 @@ fun ViewerScreen(
                         movingToFolder = null
                     }
                 },
+                onCreateFolder = { showNewFolder = true },
+                onRequestMove = { showMoveDialog = true },
+                hasFolders = folderNames.isNotEmpty(),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
@@ -398,10 +401,12 @@ private fun BottomActionBar(
     onCopyLink: () -> Unit,
     onRefresh: () -> Unit,
     onMoveItem: (Media, String) -> Unit,
+    onCreateFolder: () -> Unit,
+    onRequestMove: () -> Unit,
+    hasFolders: Boolean,
     modifier: Modifier = Modifier
 ) {
     var menu by remember { mutableStateOf(false) }
-    var folders by remember { mutableStateOf<List<String>>(emptyList()) }
 
     Surface(
         shape = RoundedCornerShape(34.dp),
@@ -501,31 +506,16 @@ private fun BottomActionBar(
                         DropdownMenuItem(
                             text = { Text("Crear carpeta") },
                             leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
-                            onClick = { menu = false; showNewFolder = true }
+                            onClick = { menu = false; onCreateFolder() }
                         )
                         DropdownMenuItem(
                             text = { Text("Mover a carpeta") },
                             leadingIcon = { Icon(Icons.Filled.DeleteOutline, contentDescription = null) },
-                            enabled = folderNames.isNotEmpty(),
+                            enabled = hasFolders,
                             onClick = {
                                 menu = false
-                                if (folderNames.isNotEmpty()) showMoveDialog = true
+                                if (hasFolders) onRequestMove()
                             }
-                        )
-                    }
-                }
-
-                // Selector rápido de carpeta para mover (si hay carpetas creadas).
-                if (folders.isNotEmpty()) {
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = Color.White.copy(alpha = 0.12f),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            text = "Mover a: ${folders.lastOrNull() ?: ""}",
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
                     }
                 }
