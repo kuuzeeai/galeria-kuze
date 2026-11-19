@@ -56,6 +56,7 @@ import com.kuze.galeria.ui.shareMedia
 import com.kuze.galeria.ui.thumbWidthFor
 import com.kuze.galeria.ui.buildImageLoader
 import com.kuze.galeria.ui.buildViewerLoader
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private enum class Screen { Library, Settings }
@@ -231,8 +232,8 @@ private fun LibraryScreen(
             else state.items.filter { it.folder == album }
         }
     }
-    val shown = remember(base, filter, state.favorites, state.hiddenPaths) {
-        val visible = base.filter { it.path !in state.hiddenPaths }
+    val shown = remember(base, filter, state.favorites, state.settings.hiddenPaths) {
+        val visible = base.filter { it.path !in state.settings.hiddenPaths }
         when (filter) {
             1 -> visible.filter { !it.isVideo }
             2 -> visible.filter { it.isVideo }
@@ -316,7 +317,6 @@ private fun LibraryScreen(
                     color = MaterialTheme.colorScheme.inverseSurface,
                     contentColor = MaterialTheme.colorScheme.inverseOnSurface,
                     modifier = Modifier
-                        .align(Alignment.Center)
                         .fillMaxWidth(0.85f)
                         .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {

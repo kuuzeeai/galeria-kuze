@@ -108,9 +108,9 @@ class AppState(context: Context) {
      * miniserve 0.35 no hace DELETE, así que la mayoría de las veces falla.
      * Si falla, la foto se oculta igual de la galería (borrar para mí).
      */
-    suspend fun deleteOnServer(media: Media): Boolean = withContext(kotlinx.coroutines.Dispatchers.IO) {
+    suspend fun deleteOnServer(media: Media): Boolean = withContext(Dispatchers.IO) {
         val url = media.url ?: return@withContext false
-        val request = okhttp3.Request.Builder().url(url).delete().build()
+        val request = Request.Builder().url(url).delete().build()
         runCatching {
             api.client.newCall(request).execute().use { it.isSuccessful }
         }.getOrNull() ?: false

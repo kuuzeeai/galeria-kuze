@@ -17,7 +17,7 @@ fun buildImageLoader(context: Context, client: OkHttpClient): ImageLoader =
         .respectCacheHeaders(false)
         .memoryCache {
             MemoryCache.Builder(context)
-                .maxSizePercent(0.10f)
+                .maxSizeBytes(16L * 1024L * 1024L)
                 .build()
         }
         .diskCache {
@@ -41,7 +41,7 @@ fun buildViewerLoader(context: Context, client: OkHttpClient): ImageLoader =
         .diskCache(null)
         .memoryCache {
             MemoryCache.Builder(context)
-                .maxSizePercent(0.12f)
+                .maxSizeBytes(24L * 1024L * 1024L)
                 .build()
         }
         .crossfade(true)

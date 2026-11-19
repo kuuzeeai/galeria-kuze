@@ -107,7 +107,6 @@ fun SettingsScreen(
     var gridOpen by remember { mutableStateOf(false) }
     var backupOpen by remember { mutableStateOf(false) }
     var backupMessage by remember { mutableStateOf<String?>(null) }
-        activity?.registerFor法
 
     val localModeOptions = listOf(
         LocalModeOption("ambos", "Ambos", "Servidor y teléfono juntos"),
