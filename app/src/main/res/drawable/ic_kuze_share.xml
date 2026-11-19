@@ -4,8 +4,6 @@
     android:viewportWidth="24"
     android:viewportHeight="24">
     <!-- Red de compartir: 3 nodos conectados -->
-    <circle android:cx="12" android:cy="8" android:r="1.5" android:fillColor="#000"/>
-    <circle android:cx="6" android:cy="16" android:r="1.5" android:fillColor="#000"/>
-    <circle android:cx="18" android:cy="16" android:r="1.5" android:fillColor="#000"/>
+    <path android:fillColor="#000" android:pathData="M10.5 8A1.5 1.5 0 1 1 13.5 8A1.5 1.5 0 1 1 10.5 8M4.5 16A1.5 1.5 0 1 1 7.5 16A1.5 1.5 0 1 1 4.5 16M16.5 16A1.5 1.5 0 1 1 19.5 16A1.5 1.5 0 1 1 16.5 16"/>
     <path android:strokeColor="#000" android:strokeWidth="1.8" android:strokeLineCap="round" android:pathData="M12 9.5 L9 14.5M12 9.5 L15 14.5"/>
 </vector>

@@ -4,7 +4,5 @@
     android:viewportWidth="24"
     android:viewportHeight="24">
     <!-- Más: 3 puntos en triángulo -->
-    <circle android:cx="12" android:cy="8" android:r="1.5" android:fillColor="#000"/>
-    <circle android:cx="7" android:cy="16" android:r="1.5" android:fillColor="#000"/>
-    <circle android:cx="17" android:cy="16" android:r="1.5" android:fillColor="#000"/>
+    <path android:fillColor="#000" android:pathData="M10.5 8A1.5 1.5 0 1 1 13.5 8A1.5 1.5 0 1 1 10.5 8M5.5 16A1.5 1.5 0 1 1 8.5 16A1.5 1.5 0 1 1 5.5 16M15.5 16A1.5 1.5 0 1 1 18.5 16A1.5 1.5 0 1 1 15.5 16"/>
 </vector>
