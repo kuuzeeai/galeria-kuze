@@ -27,6 +27,36 @@ private const val SHARE_DIR = "compartir"
 /** Carpeta de la galería donde se guarda la copia editada. */
 const val GALLERY_FOLDER = "DCIM/Camera"
 
+/** Carpeta donde se guardan las descargas del servidor. */
+const val DOWNLOADS_FOLDER = "DCIM/Kuze"
+
+/** Crea DCIM/Kuze/.nomedia para que las descargas no se mezclen con la galería. */
+private fun ensureNoMedia(context: Context) {
+    runCatching {
+        val resolver = context.contentResolver
+        val collection = MediaStore.Files.getContentUri("external")
+        val selection = "${MediaStore.MediaColumns.RELATIVE_PATH}=? AND ${MediaStore.MediaColumns.DISPLAY_NAME}=?"
+        val args = arrayOf("$DOWNLOADS_FOLDER/", ".nomedia")
+        val exists = resolver.query(collection, arrayOf(MediaStore.MediaColumns._ID), selection, args, null)
+            ?.use { it.count > 0 } ?: false
+        if (exists) return
+
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, ".nomedia")
+            put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.MediaColumns.RELATIVE_PATH, DOWNLOADS_FOLDER)
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+        }
+        val uri = resolver.insert(collection, values) ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val done = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
+            resolver.update(uri, done, null, null)
+        }
+    }
+}
+
 /** Descarga el archivo a una carpeta temporal y abre el menú de compartir de Android. */
 suspend fun shareMedia(context: Context, api: ServerApi, media: Media): Result<Unit> =
     withContext(Dispatchers.IO) {
@@ -102,8 +132,9 @@ fun renderAdjusted(
 }
 
 /**
- * Descarga el archivo del servidor y lo guarda en la galería del teléfono
- * (DCIM/Camera para fotos, DCIM para videos). El servidor no se toca más allá de la descarga.
+ * Descarga el archivo del servidor y lo guarda en DCIM/Kuze del teléfono.
+ * Esa carpeta lleva un archivo .nomedia para que no se mezcle con la galería.
+ * El servidor no se toca más allá de la descarga.
  */
 suspend fun downloadMediaToGallery(context: Context, api: ServerApi, media: Media): Result<String> =
     withContext(Dispatchers.IO) {
@@ -120,7 +151,7 @@ suspend fun downloadMediaToGallery(context: Context, api: ServerApi, media: Medi
                     put(if (media.isVideo) MediaStore.Video.Media.MIME_TYPE else MediaStore.Images.Media.MIME_TYPE, mime)
                     put(if (media.isVideo) MediaStore.Video.Media.DATE_ADDED else MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis() / 1000)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM")
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, DOWNLOADS_FOLDER)
                         put(MediaStore.MediaColumns.IS_PENDING, 1)
                     }
                 }
@@ -137,6 +168,7 @@ suspend fun downloadMediaToGallery(context: Context, api: ServerApi, media: Medi
                     resolver.update(uri, values, null, null)
                 }
 
+                ensureNoMedia(context)
                 name
             }
         }

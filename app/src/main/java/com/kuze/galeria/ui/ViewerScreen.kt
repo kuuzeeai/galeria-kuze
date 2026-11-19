@@ -187,7 +187,7 @@ fun ViewerScreen(
                         scope.launch {
                             downloadMediaToGallery(context, api, current)
                                 .onSuccess { name ->
-                                    message = "Descargado en la galería: $name"
+                                    message = "Descargado en DCIM/Kuze: $name"
                                 }
                                 .onFailure {
                                     message = "No se pudo descargar: ${it.message}"
