@@ -13,7 +13,7 @@ Repo: kuuzeeai/galeria-kuze, rama main. Se compila en GitHub Actions (.github/wo
 - Nunca pedir ni mostrar claves.
 - Avisar antes de borrar o sobrescribir algo.
 - No usar pkill. No matar la sesión tmux opencode.
-- Al terminar una tarea: commit y push para que compile en GitHub Actions; revisar gh run list y arreglar si falla. Nunca subir claves.
+- Una sola compilación al terminar todas las ediciones (no compilar cada cambio). Commit y push para que compile en GitHub Actions; revisar gh run list y arreglar si falla. Nunca subir claves.
 
 ## Al lograr algo o al quedar a medias
 - Actualizar PROGRESO.md (sección 9): qué se logró, qué falta, errores actuales. Pocas líneas, con el estado REAL (si el build falla, decirlo).

@@ -1,5 +1,6 @@
 package com.kuze.galeria.ui
 
+import android.view.View
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -55,7 +57,7 @@ fun ExpressiveSheet(
 /** Fila de la hoja: icono en burbuja de color y texto grande. */
 @Composable
 fun ExpressiveSheetItem(
-    icon: ImageVector,
+    @DrawableRes iconRes: Int,
     label: String,
     enabled: Boolean = true,
     container: Color = MaterialTheme.colorScheme.primaryContainer,
@@ -85,7 +87,12 @@ fun ExpressiveSheetItem(
         ) {
             Surface(shape = CircleShape, color = bubble, contentColor = iconColor) {
                 Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp))
+                    Icon(
+                        painter = painterResource(iconRes),
+                        contentDescription = null,
+                        tint = iconColor,
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
             }
             Text(

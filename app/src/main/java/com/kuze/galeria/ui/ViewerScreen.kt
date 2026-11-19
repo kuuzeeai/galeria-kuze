@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.rounded.AutoFixHigh
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
@@ -94,6 +95,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.kuze.galeria.data.Media
 import com.kuze.galeria.data.ServerApi
+import com.kuze.galeria.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -193,8 +195,8 @@ fun ViewerScreen(
             val date = remember(shown.id) { viewerDate(shown) }
             AnimatedVisibility(
                 visible = barsVisible && !zoomed,
-                enter = fadeIn(tween(110)) + slideInVertically(tween(150)) { -it / 3 },
-                exit = fadeOut(tween(90)) + slideOutVertically(tween(130)) { -it / 3 },
+                enter = fadeIn(tween(40)) + slideInVertically(tween(60)) { -it / 3 },
+                exit = fadeOut(tween(30)) + slideOutVertically(tween(50)) { -it / 3 },
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .systemBarsPadding()
@@ -211,8 +213,8 @@ fun ViewerScreen(
 
             AnimatedVisibility(
                 visible = barsVisible && !zoomed,
-                enter = fadeIn(tween(110)) + slideInVertically(tween(150)) { it / 3 },
-                exit = fadeOut(tween(90)) + slideOutVertically(tween(130)) { it / 3 },
+                enter = fadeIn(tween(40)) + slideInVertically(tween(60)) { it / 3 },
+                exit = fadeOut(tween(30)) + slideOutVertically(tween(50)) { it / 3 },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
@@ -240,7 +242,6 @@ fun ViewerScreen(
                     },
                     onEdit = { editing = shown },
                     onFavorite = { onToggleFavorite(shown) },
-                    onDelete = { confirmingDelete = true },
                     onDetails = { details = shown },
                     onCopyLink = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
@@ -380,7 +381,7 @@ fun ViewerScreen(
             }
             folderNames.forEach { folder ->
                 ExpressiveSheetItem(
-                    icon = Icons.Filled.Folder,
+                    iconRes = R.drawable.ic_kuze_folder,
                     label = folder,
                     onClick = {
                         onMoveToFolder(current, folder)
@@ -465,7 +466,6 @@ private fun BottomActionBar(
     onDownload: () -> Unit,
     onEdit: () -> Unit,
     onFavorite: () -> Unit,
-    onDelete: () -> Unit,
     onDetails: () -> Unit,
     onCopyLink: () -> Unit,
     onRefresh: () -> Unit,
@@ -491,44 +491,35 @@ private fun BottomActionBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             ExpressiveAction(
-                icon = Icons.Rounded.IosShare,
+                iconRes = R.drawable.ic_kuze_share,
                 label = "Compartir",
                 onClick = onShare
             )
 
             if (!media.isVideo) {
                 ExpressiveAction(
-                    icon = Icons.Rounded.AutoFixHigh,
+                    iconRes = R.drawable.ic_kuze_edit,
                     label = "Editar",
                     onClick = onEdit
                 )
             }
 
             ExpressiveAction(
-                icon = if (favorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                iconRes = if (favorite) R.drawable.ic_kuze_favorite_filled else R.drawable.ic_kuze_favorite,
                 label = if (favorite) "Favorito" else "Favorito",
                 tint = if (favorite) FavoriteColor else MaterialTheme.colorScheme.onSurface,
                 onClick = onFavorite
             )
 
             ExpressiveAction(
-                icon = Icons.Rounded.FileDownload,
+                iconRes = R.drawable.ic_kuze_download,
                 label = "Descargar",
                 enabled = !busy,
                 onClick = onDownload
             )
 
-            if (!media.isVideo) {
-                ExpressiveAction(
-                    icon = Icons.Rounded.DeleteSweep,
-                    label = "Eliminar",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    onClick = onDelete
-                )
-            }
-
             ExpressiveAction(
-                icon = Icons.Rounded.MoreHoriz,
+                iconRes = R.drawable.ic_kuze_more,
                 label = "Más",
                 onClick = { menu = true }
             )
@@ -538,7 +529,7 @@ private fun BottomActionBar(
     if (menu) {
         ExpressiveSheet(onDismiss = { menu = false }) {
             ExpressiveSheetItem(
-                icon = Icons.Rounded.FileDownload,
+                iconRes = R.drawable.ic_kuze_download,
                 label = "Descargar imagen",
                 enabled = !busy,
                 onClick = {
@@ -547,7 +538,7 @@ private fun BottomActionBar(
                 }
             )
             ExpressiveSheetItem(
-                icon = Icons.Filled.Info,
+                iconRes = R.drawable.ic_kuze_info,
                 label = "Detalles",
                 onClick = {
                     menu = false
@@ -555,7 +546,7 @@ private fun BottomActionBar(
                 }
             )
             ExpressiveSheetItem(
-                icon = Icons.Filled.Link,
+                iconRes = R.drawable.ic_kuze_link,
                 label = "Copiar enlace",
                 onClick = {
                     menu = false
@@ -563,7 +554,7 @@ private fun BottomActionBar(
                 }
             )
             ExpressiveSheetItem(
-                icon = Icons.Filled.Refresh,
+                iconRes = R.drawable.ic_kuze_refresh,
                 label = "Recargar galería",
                 onClick = {
                     menu = false
@@ -571,7 +562,7 @@ private fun BottomActionBar(
                 }
             )
             ExpressiveSheetItem(
-                icon = Icons.Filled.CreateNewFolder,
+                iconRes = R.drawable.ic_kuze_folder_new,
                 label = "Crear carpeta",
                 onClick = {
                     menu = false
@@ -579,7 +570,7 @@ private fun BottomActionBar(
                 }
             )
             ExpressiveSheetItem(
-                icon = Icons.Filled.DriveFileMove,
+                iconRes = R.drawable.ic_kuze_move,
                 label = "Mover a carpeta",
                 enabled = hasFolders,
                 onClick = {
@@ -593,7 +584,7 @@ private fun BottomActionBar(
 
 @Composable
 private fun ExpressiveAction(
-    icon: ImageVector,
+    @DrawableRes iconRes: Int,
     label: String,
     onClick: () -> Unit,
     tint: Color = MaterialTheme.colorScheme.onSurface,
@@ -605,7 +596,7 @@ private fun ExpressiveAction(
         modifier = Modifier.size(52.dp)
     ) {
         Icon(
-            imageVector = icon,
+            painter = painterResource(iconRes),
             contentDescription = label,
             tint = if (enabled) tint else tint.copy(alpha = 0.4f),
             modifier = Modifier.size(26.dp)
