@@ -1,9 +1,12 @@
 package com.kuze.galeria.ui
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Matrix
 import android.widget.ImageView
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +20,7 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material3.Button
@@ -43,14 +47,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.FileProvider
 import androidx.core.graphics.drawable.toBitmap
 import coil.ImageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.kuze.galeria.data.Media
+import com.yalantis.ucrop.UCrop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 
 /**
  * Editor sencillo: brillo, contraste, saturación y giro. Al guardar crea una copia
@@ -101,8 +109,60 @@ fun EditorScreen(
         }
     }
 
-    fun reset() {
-        brightness = 0f
+    val cropLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val output = result.data?.let { UCrop.getOutput(it) }
+            if (output != null) {
+                scope.launch {
+                    val cropped = withContext(Dispatchers.IO) {
+                        runCatching {
+                            context.contentResolver.openInputStream(output)?.use { input ->
+                                BitmapFactory.decodeStream(input)
+                            }
+                        }.getOrNull()
+                    }
+                    if (cropped != null) {
+                        bitmap = cropped
+                        rotation = 0
+                    } else {
+                        error = "No se pudo abrir la foto recortada"
+                    }
+                }
+            }
+        }
+    }
+
+    fun crop() {
+        val source = preview ?: return
+        error = null
+        scope.launch {
+            val uris = withContext(Dispatchers.IO) {
+                runCatching {
+                    val dir = File(context.cacheDir, "recorte").apply { mkdirs() }
+                    val input = File(dir, "entrada.jpg")
+                    val output = File(dir, "salida.jpg")
+                    FileOutputStream(input).use { out ->
+                        source.compress(Bitmap.CompressFormat.JPEG, 95, out)
+                    }
+                    if (output.exists()) output.delete()
+                    val authority = "${context.packageName}.files"
+                    FileProvider.getUriForFile(context, authority, input) to
+                        FileProvider.getUriForFile(context, authority, output)
+                }.getOrNull()
+            }
+            if (uris == null) {
+                error = "No se pudo preparar el recorte"
+                return@launch
+            }
+            val intent = UCrop.of(uris.first, uris.second).getIntent(context)
+            runCatching { cropLauncher.launch(intent) }
+                .onFailure { error = "No se pudo abrir el recorte" }
+        }
+    }
+
+    fun reset() {        brightness = 0f
         contrast = 1f
         saturation = 1f
         rotation = 0
@@ -254,6 +314,14 @@ fun EditorScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Text("  Girar")
+                        }
+                        TextButton(onClick = { crop() }, enabled = preview != null) {
+                            Icon(
+                                Icons.Filled.Crop,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text("  Recortar")
                         }
                         TextButton(onClick = { reset() }) {
                             Icon(
