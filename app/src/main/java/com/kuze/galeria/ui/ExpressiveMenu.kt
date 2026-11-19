@@ -1,6 +1,7 @@
 package com.kuze.galeria.ui
 
 import android.view.View
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
