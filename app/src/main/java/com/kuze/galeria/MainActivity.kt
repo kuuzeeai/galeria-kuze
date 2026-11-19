@@ -2,8 +2,10 @@ package com.kuze.galeria
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -50,6 +52,7 @@ import com.kuze.galeria.ui.GaleriaTheme
 import com.kuze.galeria.ui.PhotosScreen
 import com.kuze.galeria.ui.SettingsScreen
 import com.kuze.galeria.ui.ViewerScreen
+import com.kuze.galeria.ui.shareMedia
 import com.kuze.galeria.ui.thumbWidthFor
 import com.kuze.galeria.ui.buildImageLoader
 import com.kuze.galeria.ui.buildViewerLoader
@@ -96,6 +99,16 @@ private fun GaleriaApp(state: AppState) {
     }
     var viewer by remember { mutableStateOf<ViewerTarget?>(null) }
     var album by remember { mutableStateOf<String?>(null) }
+    val gridState = rememberLazyGridState()
+
+    // El botón y el gesto de atrás vuelven a la pantalla anterior, no cierran la app.
+    BackHandler(enabled = viewer != null || album != null || screen == Screen.Settings) {
+        when {
+            viewer != null -> viewer = null
+            album != null -> album = null
+            else -> screen = Screen.Library
+        }
+    }
 
     LaunchedEffect(Unit) {
         state.prepareStorage()
@@ -133,6 +146,7 @@ private fun GaleriaApp(state: AppState) {
                     onToggleFavorite = { state.toggleFavorite(it) },
                     onRefresh = { scope.launch { state.refresh() } },
                     onDownload = { scope.launch { state.downloadMedia(it) } },
+                    onShare = { scope.launch { shareMedia(state.context, state.api, it) } },
                     onCreateFolder = { name ->
                         scope.launch { state.createVirtualFolder(name) }
                     },
@@ -144,6 +158,7 @@ private fun GaleriaApp(state: AppState) {
                 LibraryScreen(
                     state = state,
                     loader = loader,
+                    gridState = gridState,
                     album = album,
                     darkTheme = state.darkTheme,
                     onToggleTheme = { state.toggleTheme() },
@@ -165,6 +180,7 @@ private fun GaleriaApp(state: AppState) {
 private fun LibraryScreen(
     state: AppState,
     loader: ImageLoader,
+    gridState: androidx.compose.foundation.lazy.grid.LazyGridState,
     album: String?,
     darkTheme: Boolean,
     onToggleTheme: () -> Unit,
@@ -285,6 +301,7 @@ private fun LibraryScreen(
                     album != null -> PhotosScreen(
                         items = shown,
                         loader = loader,
+                        gridState = gridState,
                         columns = state.columns,
                         thumbUrlsFor = { state.api.thumbUrlsFor(it, thumbWidthFor(state.columns)) },
                         onOpen = { index -> onOpen(shown, index) }
@@ -293,6 +310,7 @@ private fun LibraryScreen(
                     tab == 0 -> PhotosScreen(
                         items = shown,
                         loader = loader,
+                        gridState = gridState,
                         columns = state.columns,
                         thumbUrlsFor = { state.api.thumbUrlsFor(it, thumbWidthFor(state.columns)) },
                         showHero = true,

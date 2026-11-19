@@ -116,6 +116,11 @@ class AppState(context: Context) {
     fun choosePalette(id: String) {
         palette = id
         settings.palette = id
+        // AMOLED siempre es oscuro.
+        if (id == "amoled" && !darkTheme) {
+            darkTheme = true
+            settings.darkTheme = true
+        }
     }
 
     fun chooseColumns(value: Int) {

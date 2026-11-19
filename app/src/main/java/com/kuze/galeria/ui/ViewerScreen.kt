@@ -32,7 +32,10 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -70,6 +73,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.datasource.okhttp.OkHttpDataSource
@@ -106,6 +110,7 @@ fun ViewerScreen(
     onRefresh: () -> Unit,
     onClose: () -> Unit,
     onDownload: (Media) -> Unit,
+    onShare: (Media) -> Unit,
     onCreateFolder: (String) -> Unit,
     onMoveToFolder: (Media, String) -> Unit,
     virtualFolders: Map<String, Set<String>>
@@ -181,13 +186,14 @@ fun ViewerScreen(
                 media = current,
                 favorite = isFavorite(current),
                 busy = downloading,
+                onShare = { onShare(current) },
                 onDownload = {
                     if (!downloading) {
                         downloading = true
                         scope.launch {
                             downloadMediaToGallery(context, api, current)
                                 .onSuccess { name ->
-                                    message = "Descargado en DCIM/Kuze: $name"
+                                    message = "Guardado en Descargas/Galería: $name"
                                 }
                                 .onFailure {
                                     message = "No se pudo descargar: ${it.message}"
@@ -354,8 +360,10 @@ fun ViewerScreen(
 private fun TopBar(title: String, position: String, onClose: () -> Unit, modifier: Modifier = Modifier) {
     Surface(
         shape = RoundedCornerShape(28.dp),
-        color = Color.Black.copy(alpha = 0.45f),
+        color = Color.Black.copy(alpha = 0.32f),
         contentColor = Color.White,
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.22f)),
+        shadowElevation = 10.dp,
         modifier = modifier
     ) {
         Row(
@@ -384,15 +392,16 @@ private fun TopBar(title: String, position: String, onClose: () -> Unit, modifie
 }
 
 /**
- * Barra flotante con las acciones de la foto, en el orden pedido:
- * compartir, editar, favorito, eliminar y más opciones.
- * Estilo Expressive: botones redondos con colores suaves, como el editor.
+ * Barra flotante tipo "liquid glass": semitransparente, con borde claro y sombra,
+ * para que se lea bien sobre cualquier foto. Orden: compartir, editar, favorito,
+ * descargar, eliminar y más.
  */
 @Composable
 private fun BottomActionBar(
     media: Media,
     favorite: Boolean,
     busy: Boolean,
+    onShare: () -> Unit,
     onDownload: () -> Unit,
     onEdit: () -> Unit,
     onFavorite: () -> Unit,
@@ -400,7 +409,6 @@ private fun BottomActionBar(
     onDetails: () -> Unit,
     onCopyLink: () -> Unit,
     onRefresh: () -> Unit,
-    onMoveItem: (Media, String) -> Unit,
     onCreateFolder: () -> Unit,
     onRequestMove: () -> Unit,
     hasFolders: Boolean,
@@ -409,145 +417,152 @@ private fun BottomActionBar(
     var menu by remember { mutableStateOf(false) }
 
     Surface(
-        shape = RoundedCornerShape(34.dp),
-        color = Color.Black.copy(alpha = 0.55f),
+        shape = RoundedCornerShape(30.dp),
+        color = Color.Black.copy(alpha = 0.30f),
         contentColor = Color.White,
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.26f)),
+        shadowElevation = 14.dp,
         modifier = modifier
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+        Row(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Fila principal: compartir, editar, favorito, eliminar.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            ExpressiveAction(
+                icon = Icons.Filled.Share,
+                label = "Compartir",
+                onClick = onShare
+            )
+
+            if (!media.isVideo) {
                 ExpressiveAction(
-                    icon = Icons.Filled.Share,
-                    label = "Compartir",
-                    onClick = onDownload
+                    icon = Icons.Filled.Edit,
+                    label = "Editar",
+                    onClick = onEdit
                 )
-
-                if (!media.isVideo) {
-                    ExpressiveAction(
-                        icon = Icons.Filled.Edit,
-                        label = "Editar",
-                        onClick = onEdit
-                    )
-                }
-
-                ExpressiveAction(
-                    icon = if (favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                    label = if (favorite) "Quitar favorito" else "Favorito",
-                    tint = if (favorite) FavoriteColor else Color.White,
-                    onClick = onFavorite
-                )
-
-                if (!media.isVideo) {
-                    ExpressiveAction(
-                        icon = Icons.Filled.DeleteOutline,
-                        label = "Eliminar",
-                        tint = Color.White.copy(alpha = 0.45f),
-                        onClick = onDelete
-                    )
-                }
             }
 
-            Spacer(Modifier.height(6.dp))
+            ExpressiveAction(
+                icon = if (favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                label = if (favorite) "Favorito" else "Favorito",
+                tint = if (favorite) FavoriteColor else Color.White,
+                onClick = onFavorite
+            )
 
-            // Fila secundaria: más opciones con menú desplegable.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box {
-                    ExpressiveAction(
-                        icon = Icons.Filled.MoreVert,
-                        label = "Más",
-                        onClick = { menu = true }
-                    )
+            ExpressiveAction(
+                icon = Icons.Filled.Download,
+                label = "Descargar",
+                enabled = !busy,
+                onClick = onDownload
+            )
 
-                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Descargar imagen") },
-                            leadingIcon = { Icon(Icons.Filled.Share, contentDescription = null) },
-                            enabled = !busy,
-                            onClick = {
-                                menu = false
-                                onDownload()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Detalles") },
-                            leadingIcon = { Icon(Icons.Filled.Info, contentDescription = null) },
-                            onClick = {
-                                menu = false
-                                onDetails()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Copiar enlace") },
-                            leadingIcon = { Icon(Icons.Filled.Link, contentDescription = null) },
-                            onClick = {
-                                menu = false
-                                onCopyLink()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Recargar galería") },
-                            leadingIcon = { Icon(Icons.Filled.Refresh, contentDescription = null) },
-                            onClick = {
-                                menu = false
-                                onRefresh()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Crear carpeta") },
-                            leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
-                            onClick = { menu = false; onCreateFolder() }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Mover a carpeta") },
-                            leadingIcon = { Icon(Icons.Filled.DeleteOutline, contentDescription = null) },
-                            enabled = hasFolders,
-                            onClick = {
-                                menu = false
-                                if (hasFolders) onRequestMove()
-                            }
-                        )
-                    }
-                }
+            if (!media.isVideo) {
+                ExpressiveAction(
+                    icon = Icons.Filled.DeleteOutline,
+                    label = "Eliminar",
+                    tint = Color.White.copy(alpha = 0.45f),
+                    onClick = onDelete
+                )
             }
+
+            ExpressiveAction(
+                icon = Icons.Filled.MoreVert,
+                label = "Más",
+                onClick = { menu = true }
+            )
+        }
+    }
+
+    if (menu) {
+        ExpressiveSheet(onDismiss = { menu = false }) {
+            ExpressiveSheetItem(
+                icon = Icons.Filled.Download,
+                label = "Descargar imagen",
+                enabled = !busy,
+                onClick = {
+                    menu = false
+                    onDownload()
+                }
+            )
+            ExpressiveSheetItem(
+                icon = Icons.Filled.Info,
+                label = "Detalles",
+                onClick = {
+                    menu = false
+                    onDetails()
+                }
+            )
+            ExpressiveSheetItem(
+                icon = Icons.Filled.Link,
+                label = "Copiar enlace",
+                onClick = {
+                    menu = false
+                    onCopyLink()
+                }
+            )
+            ExpressiveSheetItem(
+                icon = Icons.Filled.Refresh,
+                label = "Recargar galería",
+                onClick = {
+                    menu = false
+                    onRefresh()
+                }
+            )
+            ExpressiveSheetItem(
+                icon = Icons.Filled.CreateNewFolder,
+                label = "Crear carpeta",
+                onClick = {
+                    menu = false
+                    onCreateFolder()
+                }
+            )
+            ExpressiveSheetItem(
+                icon = Icons.Filled.DriveFileMove,
+                label = "Mover a carpeta",
+                enabled = hasFolders,
+                onClick = {
+                    menu = false
+                    if (hasFolders) onRequestMove()
+                }
+            )
         }
     }
 }
+
 @Composable
 private fun ExpressiveAction(
     icon: ImageVector,
     label: String,
     onClick: () -> Unit,
-    tint: Color = Color.White
+    tint: Color = Color.White,
+    enabled: Boolean = true
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.size(56.dp)
+        modifier = Modifier.size(52.dp)
     ) {
-        IconButton(onClick = onClick, modifier = Modifier.size(42.dp)) {
+        IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(38.dp)) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = tint,
-                modifier = Modifier.size(22.dp)
+                tint = if (enabled) tint else tint.copy(alpha = 0.4f),
+                modifier = Modifier.size(21.dp)
             )
         }
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.White,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 9.sp,
+                shadow = androidx.compose.ui.graphics.Shadow(
+                    color = Color.Black.copy(alpha = 0.6f),
+                    offset = androidx.compose.ui.geometry.Offset(0f, 1f),
+                    blurRadius = 3f
+                )
+            ),
+            color = Color.White.copy(alpha = if (enabled) 1f else 0.5f),
             maxLines = 1,
-            modifier = Modifier.padding(top = 2.dp)
+            modifier = Modifier.padding(top = 1.dp)
         )
     }
 }

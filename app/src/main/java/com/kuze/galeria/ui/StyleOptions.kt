@@ -23,7 +23,8 @@ val paletteOptions = listOf(
     PaletteInfo("atardecer", "Atardecer", Color(0xFFA33D2E)),
     PaletteInfo("lavanda", "Lavanda", Color(0xFF6B4E9E)),
     PaletteInfo("bosque", "Bosque", Color(0xFF3F6212)),
-    PaletteInfo("arena", "Arena", Color(0xFF7A5734))
+    PaletteInfo("arena", "Arena", Color(0xFF7A5734)),
+    PaletteInfo("amoled", "AMOLED", Color(0xFF000000))
 )
 
 private data class PaletteColors(
@@ -159,6 +160,11 @@ private fun lightScheme(p: PaletteColors) = lightColorScheme(
     onSurface = p.onSurface,
     surfaceVariant = p.surfaceVariant,
     onSurfaceVariant = p.onSurfaceVariant,
+    surfaceContainerLowest = Color.White,
+    surfaceContainerLow = lerp(p.background, Color.White, 0.5f),
+    surfaceContainer = lerp(p.surfaceVariant, Color.White, 0.55f),
+    surfaceContainerHigh = lerp(p.surfaceVariant, Color.White, 0.25f),
+    surfaceContainerHighest = p.surfaceVariant,
     outline = p.outline,
     error = Color(0xFFB3261E),
     onError = Color.White
@@ -184,15 +190,52 @@ private fun darkScheme(p: PaletteColors) = darkColorScheme(
     onSurface = lerp(p.background, Color.White, 0.90f),
     surfaceVariant = lerp(p.surfaceVariant, Color.Black, 0.80f),
     onSurfaceVariant = lerp(p.onSurfaceVariant, Color.White, 0.60f),
+    surfaceContainerLowest = lerp(p.background, Color.Black, 0.97f),
+    surfaceContainerLow = lerp(p.background, Color.Black, 0.90f),
+    surfaceContainer = lerp(p.background, Color.Black, 0.87f),
+    surfaceContainerHigh = lerp(p.background, Color.Black, 0.83f),
+    surfaceContainerHighest = lerp(p.background, Color.Black, 0.78f),
     outline = lerp(p.outline, Color.Black, 0.55f),
     error = Color(0xFFFFB4AB),
     onError = Color(0xFF690005)
 )
 
 fun colorSchemeFor(paletteId: String, dark: Boolean): ColorScheme {
+    if (paletteId == "amoled") return amoledScheme
     val p = palettes[paletteId] ?: mentaColors
     return if (dark) darkScheme(p) else lightScheme(p)
 }
+
+/** Negro puro para pantallas AMOLED: ahorra batería y apaga los píxeles. */
+private val amoledScheme = darkColorScheme(
+    primary = Color(0xFF8FD9B6),
+    onPrimary = Color(0xFF00382A),
+    primaryContainer = Color(0xFF005140),
+    onPrimaryContainer = Color(0xFFB2F2D6),
+    secondary = Color(0xFFB6CCC0),
+    onSecondary = Color(0xFF21352C),
+    secondaryContainer = Color(0xFF16241E),
+    onSecondaryContainer = Color(0xFFD2E8DC),
+    tertiary = Color(0xFFA6CEDD),
+    onTertiary = Color(0xFF073542),
+    tertiaryContainer = Color(0xFF0B3D4D),
+    onTertiaryContainer = Color(0xFFC2E8F6),
+    background = Color.Black,
+    onBackground = Color(0xFFE6F0EA),
+    surface = Color.Black,
+    onSurface = Color(0xFFE6F0EA),
+    surfaceVariant = Color(0xFF0B0F0C),
+    onSurfaceVariant = Color(0xFFA8B8AE),
+    surfaceContainerLowest = Color.Black,
+    surfaceContainerLow = Color(0xFF050706),
+    surfaceContainer = Color(0xFF080A09),
+    surfaceContainerHigh = Color(0xFF0C0F0D),
+    surfaceContainerHighest = Color(0xFF121614),
+    outline = Color(0xFF2A3530),
+    outlineVariant = Color(0xFF1A211D),
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005)
+)
 
 // ---------------------------------------------------------------------------
 // Fuentes

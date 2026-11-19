@@ -2,6 +2,4 @@
 <paths>
     <!-- Copias temporales que se crean solo para compartir una foto o un video. -->
     <cache-path name="compartir" path="compartir/" />
-    <!-- Copia temporal que se usa solo para recortar una foto. -->
-    <cache-path name="recorte" path="recorte/" />
 </paths>

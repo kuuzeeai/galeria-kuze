@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -51,6 +53,7 @@ fun PhotosScreen(
     items: List<Media>,
     loader: ImageLoader,
     columns: Int,
+    gridState: LazyGridState = rememberLazyGridState(),
     thumbUrlsFor: (Media) -> List<String>,
     showHero: Boolean = false,
     lastSync: Long = 0L,
@@ -61,6 +64,7 @@ fun PhotosScreen(
     val thumbWidth = remember(columns) { thumbWidthFor(columns) }
 
     LazyVerticalGrid(
+        state = gridState,
         columns = GridCells.Fixed(columns.coerceIn(2, 4)),
         contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 4.dp, bottom = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),

@@ -10,6 +10,8 @@ import android.graphics.ColorMatrixColorFilter
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.os.Build
+import android.os.Environment
+import android.media.MediaScannerConnection
 import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import com.kuze.galeria.data.Media
@@ -18,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Request
 import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -27,35 +30,9 @@ private const val SHARE_DIR = "compartir"
 /** Carpeta de la galería donde se guarda la copia editada. */
 const val GALLERY_FOLDER = "DCIM/Camera"
 
-/** Carpeta donde se guardan las descargas del servidor. */
-const val DOWNLOADS_FOLDER = "DCIM/Kuze"
-
-/** Crea DCIM/Kuze/.nomedia para que las descargas no se mezclen con la galería. */
-private fun ensureNoMedia(context: Context) {
-    runCatching {
-        val resolver = context.contentResolver
-        val collection = MediaStore.Files.getContentUri("external")
-        val selection = "${MediaStore.MediaColumns.RELATIVE_PATH}=? AND ${MediaStore.MediaColumns.DISPLAY_NAME}=?"
-        val args = arrayOf("$DOWNLOADS_FOLDER/", ".nomedia")
-        val exists = resolver.query(collection, arrayOf(MediaStore.MediaColumns._ID), selection, args, null)
-            ?.use { it.count > 0 } ?: false
-        if (exists) return
-
-        val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, ".nomedia")
-            put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, DOWNLOADS_FOLDER)
-                put(MediaStore.MediaColumns.IS_PENDING, 1)
-            }
-        }
-        val uri = resolver.insert(collection, values) ?: return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val done = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
-            resolver.update(uri, done, null, null)
-        }
-    }
-}
+/** Carpeta donde se guardan las descargas: Download/Galería. */
+const val DOWNLOADS_FOLDER_NAME = "Galería"
+const val DOWNLOADS_RELATIVE = "Galería"
 
 /** Descarga el archivo a una carpeta temporal y abre el menú de compartir de Android. */
 suspend fun shareMedia(context: Context, api: ServerApi, media: Media): Result<Unit> =
@@ -132,9 +109,8 @@ fun renderAdjusted(
 }
 
 /**
- * Descarga el archivo del servidor y lo guarda en DCIM/Kuze del teléfono.
- * Esa carpeta lleva un archivo .nomedia para que no se mezcle con la galería.
- * El servidor no se toca más allá de la descarga.
+ * Descarga el archivo del servidor y lo guarda en Download/Galería del teléfono.
+ * El servidor no se toca más allá de la descarga. La copia editada sí va a DCIM/Camera.
  */
 suspend fun downloadMediaToGallery(context: Context, api: ServerApi, media: Media): Result<String> =
     withContext(Dispatchers.IO) {
@@ -145,30 +121,31 @@ suspend fun downloadMediaToGallery(context: Context, api: ServerApi, media: Medi
                 val body = response.body ?: error("Respuesta vacía")
                 val name = media.name
                 val mime = if (media.isVideo) "video/mp4" else "image/jpeg"
-                val resolver = context.contentResolver
-                val values = ContentValues().apply {
-                    put(if (media.isVideo) MediaStore.Video.Media.DISPLAY_NAME else MediaStore.Images.Media.DISPLAY_NAME, name)
-                    put(if (media.isVideo) MediaStore.Video.Media.MIME_TYPE else MediaStore.Images.Media.MIME_TYPE, mime)
-                    put(if (media.isVideo) MediaStore.Video.Media.DATE_ADDED else MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis() / 1000)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        put(MediaStore.MediaColumns.RELATIVE_PATH, DOWNLOADS_FOLDER)
-                        put(MediaStore.MediaColumns.IS_PENDING, 1)
-                    }
-                }
-
-                val collection = if (media.isVideo) MediaStore.Video.Media.EXTERNAL_CONTENT_URI else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-                val uri = resolver.insert(collection, values) ?: error("No se pudo crear el archivo en la galería")
-
-                resolver.openOutputStream(uri)?.use { out -> body.byteStream().copyTo(out) }
-                    ?: error("No se pudo escribir el archivo")
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    values.clear()
-                    values.put(MediaStore.MediaColumns.IS_PENDING, 0)
-                    resolver.update(uri, values, null, null)
+                    val resolver = context.contentResolver
+                    val values = ContentValues().apply {
+                        put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+                        put(MediaStore.MediaColumns.MIME_TYPE, mime)
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, DOWNLOADS_RELATIVE)
+                        put(MediaStore.MediaColumns.IS_PENDING, 1)
+                    }
+                    val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                        ?: error("No se pudo crear el archivo en Descargas")
+                    resolver.openOutputStream(uri)?.use { out -> body.byteStream().copyTo(out) }
+                        ?: error("No se pudo escribir el archivo")
+                    val done = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
+                    resolver.update(uri, done, null, null)
+                } else {
+                    val dir = File(
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                        DOWNLOADS_FOLDER_NAME
+                    ).apply { mkdirs() }
+                    val file = File(dir, name)
+                    FileOutputStream(file).use { out -> body.byteStream().copyTo(out) }
+                    MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), arrayOf(mime), null)
                 }
 
-                ensureNoMedia(context)
                 name
             }
         }
