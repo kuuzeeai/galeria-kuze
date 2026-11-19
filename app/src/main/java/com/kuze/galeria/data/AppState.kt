@@ -82,7 +82,7 @@ class AppState(context: Context) {
     }
 
     fun moveToVirtualFolder(media: Media, folderName: String) {
-        val next = virtualFolders.toMutableMap { (k, v) -> k to v.toMutableSet() }
+        val next = virtualFolders.mapValues { it.value.toMutableSet() }.toMutableMap()
         // Se "mueve": sale de todas las carpetas virtuales y entra en la elegida.
         next.values.forEach { it.remove(media.path) }
         next[folderName] = (next[folderName] ?: emptySet()) + media.path
@@ -91,7 +91,7 @@ class AppState(context: Context) {
     }
 
     fun removeFromVirtualFolders(media: Media) {
-        val next = virtualFolders.toMutableMap { (k, v) -> k to v.toMutableSet() }
+        val next = virtualFolders.mapValues { it.value.toMutableSet() }.toMutableMap()
         var changed = false
         next.values.forEach { if (it.remove(media.path)) changed = true }
         if (changed) {

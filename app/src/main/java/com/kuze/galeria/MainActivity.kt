@@ -137,7 +137,7 @@ private fun GaleriaApp(state: AppState) {
                         scope.launch { state.createVirtualFolder(name) }
                     },
                     onMoveToFolder = { media, folderName -> state.moveToVirtualFolder(media, folderName) },
-                    onFolderCreated = { },
+                    virtualFolders = state.virtualFolders,
                     onClose = { viewer = null }
                 )
             } else {
@@ -151,7 +151,6 @@ private fun GaleriaApp(state: AppState) {
                     onOpen = { list, index -> viewer = ViewerTarget(list, index) },
                     onSettings = { screen = Screen.Settings },
                     virtualFolders = state.virtualFolders,
-                    onDownload = { scope.launch { state.downloadMedia(it) } },
                     onCreateFolder = { name ->
                         scope.launch { state.createVirtualFolder(name) }
                     }
@@ -309,7 +308,6 @@ private fun LibraryScreen(
                         onOpenFolder = { folder -> onAlbumChange(folder) },
                         onCreateFolder = { name ->
                             state.createVirtualFolder(name)
-                            onFolderCreated(name)
                         },
                         onMoveToFolder = { media, folderName ->
                             state.moveToVirtualFolder(media, folderName)
