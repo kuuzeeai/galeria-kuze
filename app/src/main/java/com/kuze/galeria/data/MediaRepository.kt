@@ -77,13 +77,13 @@ class MediaRepository(private val api: ServerApi) {
         cursor: Cursor?,
         isVideo: Boolean
     ): List<Media> {
+        val list = mutableListOf<Media>()
         cursor?.use { c ->
             val idxId = c.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
             val idxName = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
             val idxData = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)
             val idxDate = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
             val idxBucket = c.getColumnIndexOrThrow(MediaStore.MediaColumns.BUCKET_DISPLAY_NAME)
-            val list = mutableListOf<Media>()
             while (c.moveToNext()) {
                 val id = c.getString(idxId)
                 val name = c.getString(idxName)
@@ -105,7 +105,7 @@ class MediaRepository(private val api: ServerApi) {
                     local = true
                 )
             }
-            list
-        } ?: emptyList()
+        }
+        return list
     }
 }
