@@ -63,4 +63,5 @@ dependencies {
     implementation("androidx.media3:media3-datasource-okhttp:1.11.1")
 
     implementation("androidx.security:security-crypto:1.1.0")
+    implementation("com.github.yalantis:ucrop:2.2.9")
 }

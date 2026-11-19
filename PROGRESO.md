@@ -171,3 +171,18 @@ del teléfono para instalarla desde el administrador de archivos.
 - No imprimir ni pedir claves. `~/.miniserve.env` se carga dentro del comando, sin mostrarla.
 - Avisar antes de cualquier cambio en el celular viejo o que pueda borrar datos.
 - La app es solo lectura hasta que se implemente la etapa 6.
+
+## 9. Estado y pendientes (actualizado 2026-11-18)
+
+### Build: FALLA (build #12, commit 4a46d56)
+Errores vistos en GitHub Actions (puede haber más detrás):
+- data/AppState.kt:88 -> tipo: se pasa Set<String> donde se espera MutableSet<String>.
+- ui/FoldersScreen.kt:73-74 -> falta el parámetro virtualFolders.
+- ui/ViewerScreen.kt:26 -> error de sintaxis (archivo mal editado).
+La IA anterior se quedó sin cupo a mitad de este trabajo. Según ella (sin verificar): ya hizo menú de tres puntos (Descargar / Crear carpeta / Mover a carpeta), chip Favoritos condicional y carpetas virtuales.
+
+### Pendientes (en orden)
+1. Arreglar el build hasta que pase en GitHub Actions (ver errores arriba).
+2. Recorte con ucrop: la línea de la librería (2.2.9) está en app/build.gradle.kts sin guardar en git; falta el código que la usa.
+3. Revisar por qué hay que desinstalar la APK vieja al actualizar (¿firma distinta en build.yml?).
+4. Carpeta de descargas DCIM/Kuze con archivo .nomedia.
