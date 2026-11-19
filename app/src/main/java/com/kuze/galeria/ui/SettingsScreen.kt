@@ -1,11 +1,18 @@
 package com.kuze.galeria.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +28,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.rounded.Dns
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.TextFields
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -39,8 +52,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kuze.galeria.data.DEFAULT_URL
 import com.kuze.galeria.data.ServerApi
@@ -54,6 +70,10 @@ private sealed interface TestState {
     data class Fail(val text: String) : TestState
 }
 
+/**
+ * Ajustes en burbujas verticales: cada grupo se abre al tocarlo y se cierra
+ * al volver a tocarlo, con el estilo Material 3 Expressive de la app.
+ */
 @Composable
 fun SettingsScreen(
     settings: SettingsStore,
@@ -75,6 +95,11 @@ fun SettingsScreen(
     var pass by remember { mutableStateOf(settings.pass) }
     var test by remember { mutableStateOf<TestState?>(null) }
 
+    var serverOpen by remember { mutableStateOf(firstRun) }
+    var themeOpen by remember { mutableStateOf(false) }
+    var fontOpen by remember { mutableStateOf(false) }
+    var gridOpen by remember { mutableStateOf(false) }
+
     fun saveFields() {
         settings.baseUrl = url
         settings.user = user
@@ -87,7 +112,7 @@ fun SettingsScreen(
                 .padding(padding)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
@@ -110,116 +135,268 @@ fun SettingsScreen(
                 )
             }
 
-            Surface(
-                shape = RoundedCornerShape(26.dp),
-                color = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            // ------- Servidor -------
+            SettingsBubble(
+                title = "Servidor",
+                summary = url.ifBlank { "Sin dirección" },
+                icon = Icons.Rounded.Dns,
+                expanded = serverOpen,
+                onToggle = { serverOpen = !serverOpen }
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.Top
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 ) {
-                    Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Text(
-                        text = if (firstRun) {
-                            "Escribe la dirección del servidor de fotos y el usuario y la clave de miniserve. Se guardan cifrados en este teléfono."
-                        } else {
-                            "Cambia la dirección si el celular viejo tiene otra IP. Los datos quedan cifrados en este teléfono."
-                        },
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-
-            OutlinedTextField(
-                value = url,
-                onValueChange = { url = it },
-                label = { Text("Dirección del servidor") },
-                placeholder = { Text(DEFAULT_URL) },
-                singleLine = true,
-                shape = RoundedCornerShape(20.dp),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            OutlinedTextField(
-                value = user,
-                onValueChange = { user = it },
-                label = { Text("Usuario") },
-                singleLine = true,
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            OutlinedTextField(
-                value = pass,
-                onValueChange = { pass = it },
-                label = { Text("Clave") },
-                singleLine = true,
-                shape = RoundedCornerShape(20.dp),
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(2.dp))
-
-            Button(
-                onClick = {
-                    saveFields()
-                    test = TestState.Running
-                    scope.launch {
-                        test = try {
-                            val listing = api.list("/")
-                            val carpetas = listing.folders.size
-                            val archivos = listing.files.size
-                            TestState.Ok("Conexión correcta: $carpetas carpetas y $archivos archivos en la raíz.")
-                        } catch (e: Exception) {
-                            TestState.Fail(e.message ?: "No se pudo conectar")
-                        }
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Text(
+                            text = if (firstRun) {
+                                "Escribe la dirección del servidor de fotos y el usuario y la clave de miniserve. Se guardan cifrados en este teléfono."
+                            } else {
+                                "Cambia la dirección si el celular viejo tiene otra IP. Los datos quedan cifrados en este teléfono."
+                            },
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
-                },
-                enabled = test != TestState.Running,
-                shape = RoundedCornerShape(26.dp),
-                modifier = Modifier.fillMaxWidth().height(52.dp)
-            ) {
-                if (test == TestState.Running) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                } else {
-                    Text("Probar conexión")
                 }
-            }
 
-            when (val state = test) {
-                is TestState.Ok -> Text(state.text, color = MaterialTheme.colorScheme.primary)
-                is TestState.Fail -> Text(state.text, color = MaterialTheme.colorScheme.error)
-                else -> Unit
-            }
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text("Dirección del servidor") },
+                    placeholder = { Text(DEFAULT_URL) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(20.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-            Button(
-                onClick = {
-                    saveFields()
-                    onSaved()
-                },
-                enabled = url.isNotBlank() && user.isNotBlank() && pass.isNotBlank(),
-                shape = RoundedCornerShape(26.dp),
-                modifier = Modifier.fillMaxWidth().height(52.dp)
-            ) {
-                Text(if (firstRun) "Guardar y ver fotos" else "Guardar")
+                OutlinedTextField(
+                    value = user,
+                    onValueChange = { user = it },
+                    label = { Text("Usuario") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = pass,
+                    onValueChange = { pass = it },
+                    label = { Text("Clave") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(20.dp),
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Button(
+                    onClick = {
+                        saveFields()
+                        test = TestState.Running
+                        scope.launch {
+                            test = try {
+                                val listing = api.list("/")
+                                val carpetas = listing.folders.size
+                                val archivos = listing.files.size
+                                TestState.Ok("Conexión correcta: $carpetas carpetas y $archivos archivos en la raíz.")
+                            } catch (e: Exception) {
+                                TestState.Fail(e.message ?: "No se pudo conectar")
+                            }
+                        }
+                    },
+                    enabled = test != TestState.Running,
+                    shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.fillMaxWidth().height(50.dp)
+                ) {
+                    if (test == TestState.Running) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("Probar conexión")
+                    }
+                }
+
+                when (val state = test) {
+                    is TestState.Ok -> Text(state.text, color = MaterialTheme.colorScheme.primary)
+                    is TestState.Fail -> Text(state.text, color = MaterialTheme.colorScheme.error)
+                    else -> Unit
+                }
+
+                Button(
+                    onClick = {
+                        saveFields()
+                        onSaved()
+                    },
+                    enabled = url.isNotBlank() && user.isNotBlank() && pass.isNotBlank(),
+                    shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.fillMaxWidth().height(50.dp)
+                ) {
+                    Text(if (firstRun) "Guardar y ver fotos" else "Guardar")
+                }
             }
 
             if (!firstRun) {
-                DesignSection(
-                    palette = palette,
-                    columns = columns,
-                    font = font,
-                    itemCount = itemCount,
-                    onPalette = onPalette,
-                    onColumns = onColumns,
-                    onFont = onFont
-                )
+                // ------- Tema -------
+                SettingsBubble(
+                    title = "Tema",
+                    summary = paletteOptions.firstOrNull { it.id == palette }?.label ?: "Menta",
+                    icon = Icons.Rounded.Palette,
+                    expanded = themeOpen,
+                    onToggle = { themeOpen = !themeOpen }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        paletteOptions.forEach { option ->
+                            val selected = option.id == palette
+                            Surface(
+                                onClick = { onPalette(option.id) },
+                                shape = RoundedCornerShape(20.dp),
+                                color = if (selected) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                },
+                                contentColor = if (selected) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(7.dp)
+                                ) {
+                                    Box(
+                                        Modifier
+                                            .size(15.dp)
+                                            .clip(CircleShape)
+                                            .background(option.swatch)
+                                    )
+                                    Text(option.label, style = MaterialTheme.typography.labelLarge)
+                                }
+                            }
+                        }
+                    }
+                    Text(
+                        text = "Los cambios se ven al instante. AMOLED usa negro puro para ahorrar batería.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
+                // ------- Fuente -------
+                SettingsBubble(
+                    title = "Fuente",
+                    summary = fontOptions.firstOrNull { it.id == font }?.label ?: "Sistema",
+                    icon = Icons.Rounded.TextFields,
+                    expanded = fontOpen,
+                    onToggle = { fontOpen = !fontOpen }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        fontOptions.forEach { option ->
+                            val selected = option.id == font
+                            Surface(
+                                onClick = { onFont(option.id) },
+                                shape = RoundedCornerShape(20.dp),
+                                color = if (selected) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                },
+                                contentColor = if (selected) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+                            ) {
+                                Text(
+                                    text = option.label,
+                                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = option.family()),
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // ------- Fotos por fila -------
+                SettingsBubble(
+                    title = "Fotos por fila",
+                    summary = "$columns por fila",
+                    icon = Icons.Rounded.GridView,
+                    expanded = gridOpen,
+                    onToggle = { gridOpen = !gridOpen }
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(2, 3, 4).forEach { option ->
+                            val selected = option == columns
+                            Surface(
+                                onClick = { onColumns(option) },
+                                shape = RoundedCornerShape(20.dp),
+                                color = if (selected) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                },
+                                contentColor = if (selected) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(vertical = 10.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text("$option por fila", style = MaterialTheme.typography.labelLarge)
+                                    Text(
+                                        "≈${approxKbFor(option)} KB",
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    val totalMb = (approxKbFor(columns).toLong() * itemCount / 1024.0).roundToInt()
+                    Text(
+                        text = "Con $columns por fila cada miniatura pesa ≈${approxKbFor(columns)} KB" +
+                            if (itemCount > 0) " y la caché completa ≈$totalMb MB para $itemCount archivos." else ".",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Al cambiar de filas se descarga solo la miniatura de ese tamaño.\n" +
+                            "En el teléfono solo se guardan miniaturas: las fotos completas se ven sin ocupar espacio.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(Modifier.height(2.dp))
                 TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
                     Text("Cancelar")
                 }
@@ -228,158 +405,77 @@ fun SettingsScreen(
     }
 }
 
+/** Burbuja vertical que se despliega al tocarla. */
 @Composable
-private fun DesignSection(
-    palette: String,
-    columns: Int,
-    font: String,
-    itemCount: Int,
-    onPalette: (String) -> Unit,
-    onColumns: (Int) -> Unit,
-    onFont: (String) -> Unit
+private fun SettingsBubble(
+    title: String,
+    summary: String,
+    icon: ImageVector,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
 ) {
-    Text(
-        text = "Diseño",
-        style = MaterialTheme.typography.headlineMedium,
-        modifier = Modifier.padding(top = 14.dp)
-    )
-    Text(
-        text = "Los cambios se ven al instante.",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-
-    DesignLabel("Paleta de colores")
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    val scheme = MaterialTheme.colorScheme
+    Surface(
+        shape = RoundedCornerShape(30.dp),
+        color = if (expanded) scheme.surfaceContainerHigh else scheme.surfaceContainer,
+        contentColor = scheme.onSurface,
+        border = BorderStroke(1.dp, scheme.outlineVariant.copy(alpha = 0.5f)),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        paletteOptions.forEach { option ->
-            val selected = option.id == palette
+        Column {
             Surface(
-                onClick = { onPalette(option.id) },
-                shape = RoundedCornerShape(20.dp),
-                color = if (selected) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                },
-                contentColor = if (selected) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+                onClick = onToggle,
+                shape = RoundedCornerShape(30.dp),
+                color = Color.Transparent,
+                contentColor = scheme.onSurface
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(7.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        Modifier
-                            .size(15.dp)
-                            .clip(CircleShape)
-                            .background(option.swatch)
+                    Surface(shape = CircleShape, color = scheme.primaryContainer, contentColor = scheme.onPrimaryContainer) {
+                        Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+                            Icon(icon, contentDescription = null, modifier = Modifier.size(21.dp))
+                        }
+                    }
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 14.dp)
+                    ) {
+                        Text(title, style = MaterialTheme.typography.titleMedium)
+                        if (!expanded) {
+                            Text(
+                                text = summary,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = scheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                    Icon(
+                        imageVector = if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                        contentDescription = if (expanded) "Cerrar" else "Abrir",
+                        tint = scheme.onSurfaceVariant
                     )
-                    Text(option.label, style = MaterialTheme.typography.labelLarge)
                 }
             }
-        }
-    }
 
-    DesignLabel("Fotos por fila")
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        listOf(2, 3, 4).forEach { option ->
-            val selected = option == columns
-            Surface(
-                onClick = { onColumns(option) },
-                shape = RoundedCornerShape(20.dp),
-                color = if (selected) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                },
-                contentColor = if (selected) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
-                modifier = Modifier.weight(1f)
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically(tween(180)) + fadeIn(tween(120)),
+                exit = shrinkVertically(tween(150)) + fadeOut(tween(90))
             ) {
                 Column(
-                    modifier = Modifier.padding(vertical = 10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text("$option por fila", style = MaterialTheme.typography.labelLarge)
-                    Text(
-                        "≈${approxKbFor(option)} KB",
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
-            }
-        }
-    }
-
-    val totalMb = (approxKbFor(columns).toLong() * itemCount / 1024.0).roundToInt()
-    Text(
-        text = "Con $columns por fila cada miniatura pesa ≈${approxKbFor(columns)} KB" +
-            if (itemCount > 0) " y la caché completa ≈$totalMb MB para $itemCount archivos." else ".",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    Text(
-        text = "Al cambiar de filas se descarga solo la miniatura de ese tamaño.\n" +
-            "En el teléfono solo se guardan miniaturas: las fotos completas se ven sin ocupar espacio.",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-
-    DesignLabel("Fuente")
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        fontOptions.forEach { option ->
-            val selected = option.id == font
-            Surface(
-                onClick = { onFont(option.id) },
-                shape = RoundedCornerShape(20.dp),
-                color = if (selected) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                },
-                contentColor = if (selected) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
-            ) {
-                Text(
-                    text = option.label,
-                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = option.family()),
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    content = content
                 )
             }
         }
     }
-}
-
-@Composable
-private fun DesignLabel(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        modifier = Modifier.padding(top = 6.dp)
-    )
 }

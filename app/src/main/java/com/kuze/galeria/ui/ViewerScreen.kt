@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -41,8 +42,13 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.rounded.AutoFixHigh
+import androidx.compose.material.icons.rounded.DeleteSweep
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material.icons.rounded.IosShare
+import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
@@ -187,8 +193,8 @@ fun ViewerScreen(
             val date = remember(shown.id) { viewerDate(shown) }
             AnimatedVisibility(
                 visible = barsVisible && !zoomed,
-                enter = fadeIn() + slideInVertically { -it },
-                exit = fadeOut() + slideOutVertically { -it },
+                enter = fadeIn(tween(110)) + slideInVertically(tween(150)) { -it / 3 },
+                exit = fadeOut(tween(90)) + slideOutVertically(tween(130)) { -it / 3 },
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .systemBarsPadding()
@@ -199,15 +205,14 @@ fun ViewerScreen(
                     subtitle = date.second,
                     position = "${pagerState.currentPage + 1}/${items.size}",
                     onClose = onClose,
-                    onShare = { onShare(shown) },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
 
             AnimatedVisibility(
                 visible = barsVisible && !zoomed,
-                enter = fadeIn() + slideInVertically { it },
-                exit = fadeOut() + slideOutVertically { it },
+                enter = fadeIn(tween(110)) + slideInVertically(tween(150)) { it / 3 },
+                exit = fadeOut(tween(90)) + slideOutVertically(tween(130)) { it / 3 },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
@@ -394,7 +399,6 @@ private fun TopBar(
     subtitle: String,
     position: String,
     onClose: () -> Unit,
-    onShare: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -434,9 +438,6 @@ private fun TopBar(
                 color = scheme.onSurfaceVariant,
                 modifier = Modifier.padding(end = 4.dp)
             )
-            IconButton(onClick = onShare) {
-                Icon(Icons.Filled.Share, contentDescription = "Compartir")
-            }
         }
     }
 }
@@ -490,28 +491,28 @@ private fun BottomActionBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             ExpressiveAction(
-                icon = Icons.Filled.Share,
+                icon = Icons.Rounded.IosShare,
                 label = "Compartir",
                 onClick = onShare
             )
 
             if (!media.isVideo) {
                 ExpressiveAction(
-                    icon = Icons.Filled.Edit,
+                    icon = Icons.Rounded.AutoFixHigh,
                     label = "Editar",
                     onClick = onEdit
                 )
             }
 
             ExpressiveAction(
-                icon = if (favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                icon = if (favorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                 label = if (favorite) "Favorito" else "Favorito",
                 tint = if (favorite) FavoriteColor else MaterialTheme.colorScheme.onSurface,
                 onClick = onFavorite
             )
 
             ExpressiveAction(
-                icon = Icons.Filled.Download,
+                icon = Icons.Rounded.FileDownload,
                 label = "Descargar",
                 enabled = !busy,
                 onClick = onDownload
@@ -519,7 +520,7 @@ private fun BottomActionBar(
 
             if (!media.isVideo) {
                 ExpressiveAction(
-                    icon = Icons.Filled.DeleteOutline,
+                    icon = Icons.Rounded.DeleteSweep,
                     label = "Eliminar",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     onClick = onDelete
@@ -527,7 +528,7 @@ private fun BottomActionBar(
             }
 
             ExpressiveAction(
-                icon = Icons.Filled.MoreVert,
+                icon = Icons.Rounded.MoreHoriz,
                 label = "Más",
                 onClick = { menu = true }
             )
@@ -537,7 +538,7 @@ private fun BottomActionBar(
     if (menu) {
         ExpressiveSheet(onDismiss = { menu = false }) {
             ExpressiveSheetItem(
-                icon = Icons.Filled.Download,
+                icon = Icons.Rounded.FileDownload,
                 label = "Descargar imagen",
                 enabled = !busy,
                 onClick = {
@@ -598,24 +599,16 @@ private fun ExpressiveAction(
     tint: Color = MaterialTheme.colorScheme.onSurface,
     enabled: Boolean = true
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
         modifier = Modifier.size(52.dp)
     ) {
-        IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(38.dp)) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = if (enabled) tint else tint.copy(alpha = 0.4f),
-                modifier = Modifier.size(21.dp)
-            )
-        }
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.5f),
-            maxLines = 1,
-            modifier = Modifier.padding(top = 1.dp)
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = if (enabled) tint else tint.copy(alpha = 0.4f),
+            modifier = Modifier.size(26.dp)
         )
     }
 }
@@ -676,6 +669,7 @@ private fun ZoomableImage(
 ) {
     var scale by remember(media.id) { mutableStateOf(1f) }
     var offset by remember(media.id) { mutableStateOf(Offset.Zero) }
+    var lastTap by remember(media.id) { mutableStateOf(0L) }
     val tap = rememberUpdatedState(onTap)
 
     LaunchedEffect(scale) { onZoomChange(scale > 1.01f) }
@@ -695,14 +689,22 @@ private fun ZoomableImage(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(media.id) {
+                    // Un toque responde al instante; el doble toque se detecta aparte
+                    // para no esperar el retraso del sistema.
                     detectTapGestures(
-                        onTap = { tap.value() },
-                        onDoubleTap = {
-                            if (scale > 1f) {
-                                scale = 1f
-                                offset = Offset.Zero
+                        onTap = {
+                            val now = System.currentTimeMillis()
+                            if (now - lastTap < 300L) {
+                                lastTap = 0L
+                                if (scale > 1f) {
+                                    scale = 1f
+                                    offset = Offset.Zero
+                                } else {
+                                    scale = 2.5f
+                                }
                             } else {
-                                scale = 2.5f
+                                lastTap = now
+                                tap.value()
                             }
                         }
                     )
