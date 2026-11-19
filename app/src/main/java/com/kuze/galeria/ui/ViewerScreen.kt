@@ -343,16 +343,6 @@ fun ViewerScreen(
         )
         return
     }
-        EditorScreen(
-            media = editTarget,
-            loader = loader,
-            onClose = { editing = null },
-            onSaved = { name ->
-                editing = null
-                message = "Copia guardada en DCIM/Camera: $name"
-            }
-        )
-    }
 
     // Hoja: crear carpeta
     if (showNewFolder) {
