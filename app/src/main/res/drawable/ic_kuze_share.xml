@@ -3,10 +3,9 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path
-        android:strokeColor="#000"
-        android:strokeWidth="2"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M12 10 A 2 2 0 1 1 12 14 A 2 2 0 1 1 12 10M5 12h14M12 5l7 7M19 12l-7 7" />
+    <!-- Red de compartir: 3 nodos conectados -->
+    <circle android:cx="12" android:cy="8" android:r="1.5" android:fillColor="#000"/>
+    <circle android:cx="6" android:cy="16" android:r="1.5" android:fillColor="#000"/>
+    <circle android:cx="18" android:cy="16" android:r="1.5" android:fillColor="#000"/>
+    <path android:strokeColor="#000" android:strokeWidth="1.8" android:strokeLineCap="round" android:pathData="M12 9.5 L9 14.5M12 9.5 L15 14.5"/>
 </vector>

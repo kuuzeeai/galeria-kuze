@@ -3,5 +3,7 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path android:strokeColor="#000" android:strokeWidth="2" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M17 3L5 17M5 3L17 17"/>
+    <!-- Lápiz con chispa de editar -->
+    <path android:strokeColor="#000" android:strokeWidth="2" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M4 16.5L16.5 4M19.5 12L19 12M12 19.5L12 19"/>
+    <path android:fillColor="#000" android:pathData="M14.5 4.5L18 8L16 10L12.5 6.5Z"/>
 </vector>

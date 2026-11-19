@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.sync.Mutex
 import java.io.File
 import java.io.IOException
+import kotlin.comparisons.compareByDescending
 import com.kuze.galeria.ui.downloadMediaToGallery
 import java.net.ConnectException
 import java.net.SocketTimeoutException
@@ -28,6 +29,10 @@ class AppState(context: Context) {
     private var started = false
 
     var items by mutableStateOf<List<Media>>(emptyList())
+        private set
+
+    /** Todo lo leído (servidor + local), sin filtrar. */
+    var allItems by mutableStateOf<List<Media>>(emptyList())
         private set
 
     var loading by mutableStateOf(false)
@@ -52,6 +57,9 @@ class AppState(context: Context) {
         private set
 
     var font by mutableStateOf(settings.font)
+        private set
+
+    var localMode by mutableStateOf(settings.localMode)
         private set
 
     var favorites by mutableStateOf(settings.favorites)
@@ -133,6 +141,20 @@ class AppState(context: Context) {
         settings.font = id
     }
 
+    fun chooseLocalMode(mode: String) {
+        localMode = mode
+        settings.localMode = mode
+        recomputeItems()
+    }
+
+    private fun recomputeItems() {
+        items = when (localMode) {
+            "solo_servidor" -> allItems.filter { !it.local }
+            "solo_local" -> allItems.filter { it.local }
+            else -> allItems
+        }
+    }
+
     /**
      * Borra una sola vez la caché vieja, donde quedaban guardadas las fotos
      * completas abiertas en el visor. Ahora el visor no escribe en el disco.
@@ -153,8 +175,9 @@ class AppState(context: Context) {
 
         val cached = cache.load(api.baseUrl)
         if (cached != null) {
-            items = cached
+            allItems = cached
             lastSync = settings.cachedAt
+            recomputeItems()
         }
         val stale = cached == null || System.currentTimeMillis() - settings.cachedAt > STALE_MS
         if (stale) refresh()
@@ -173,10 +196,13 @@ class AppState(context: Context) {
                 progress = "$folders carpetas · $files archivos"
             }
 
-            items = fresh
+            val localList = if (localMode != "solo_servidor") repository.loadLocal(context) else emptyList()
+            allItems = (fresh + localList).distinctBy { it.path }
+                .sortedWith(compareByDescending<Media> { it.modified }.thenBy { it.name })
             lastSync = System.currentTimeMillis()
             settings.cachedAt = lastSync
-            cache.save(fresh, api.baseUrl)
+            cache.save(allItems, api.baseUrl)
+            recomputeItems()
         } catch (e: Exception) {
             error = friendlyError(e)
         } finally {

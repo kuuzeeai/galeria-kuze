@@ -123,10 +123,12 @@ private fun GaleriaApp(state: AppState) {
             palette = state.palette,
             columns = state.columns,
             font = state.font,
+            localMode = state.localMode,
             itemCount = state.items.size,
             onPalette = { state.choosePalette(it) },
             onColumns = { state.chooseColumns(it) },
             onFont = { state.chooseFont(it) },
+            onLocalMode = { state.chooseLocalMode(it) },
             onSaved = {
                 screen = Screen.Library
                 scope.launch { state.refresh() }

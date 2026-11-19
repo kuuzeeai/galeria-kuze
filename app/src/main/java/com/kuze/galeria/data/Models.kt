@@ -19,7 +19,9 @@ data class Media(
     val path: String,
     val url: String,
     val isVideo: Boolean,
-    val modified: Long
+    val modified: Long,
+    /** true si el archivo vive en el teléfono (local) en vez del servidor. */
+    val local: Boolean = false
 ) {
     val id: String get() = path
 }

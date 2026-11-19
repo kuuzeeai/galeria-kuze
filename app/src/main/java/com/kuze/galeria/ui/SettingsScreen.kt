@@ -83,9 +83,11 @@ fun SettingsScreen(
     columns: Int,
     font: String,
     itemCount: Int,
+    localMode: String,
     onPalette: (String) -> Unit,
     onColumns: (Int) -> Unit,
     onFont: (String) -> Unit,
+    onLocalMode: (String) -> Unit,
     onSaved: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -96,9 +98,16 @@ fun SettingsScreen(
     var test by remember { mutableStateOf<TestState?>(null) }
 
     var serverOpen by remember { mutableStateOf(firstRun) }
+    var localOpen by remember { mutableStateOf(false) }
     var themeOpen by remember { mutableStateOf(false) }
     var fontOpen by remember { mutableStateOf(false) }
     var gridOpen by remember { mutableStateOf(false) }
+
+    val localModeOptions = listOf(
+        LocalModeOption("ambos", "Ambos", "Servidor y teléfono juntos"),
+        LocalModeOption("solo_servidor", "Solo servidor", "Solo el servidor casero"),
+        LocalModeOption("solo_local", "Solo local", "Solo fotos y videos del teléfono")
+    )
 
     fun saveFields() {
         settings.baseUrl = url
@@ -296,6 +305,52 @@ fun SettingsScreen(
                     )
                 }
 
+                // ------- Local -------
+                SettingsBubble(
+                    title = "Local",
+                    summary = localModeOptions.firstOrNull { it.id == localMode }?.label ?: "Ambos",
+                    icon = Icons.Rounded.Folder,
+                    expanded = localOpen,
+                    onToggle = { localOpen = !localOpen }
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        localModeOptions.forEach { option ->
+                            val selected = option.id == localMode
+                            Surface(
+                                onClick = { onLocalMode(option.id) },
+                                shape = RoundedCornerShape(20.dp),
+                                color = if (selected) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                },
+                                contentColor = if (selected) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(vertical = 10.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(option.label, style = MaterialTheme.typography.labelLarge)
+                                    Text(
+                                        option.detail,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // ------- Fuente -------
                 SettingsBubble(
                     title = "Fuente",
@@ -479,3 +534,6 @@ private fun SettingsBubble(
         }
     }
 }
+
+/** Opción de qué mostrar: servidor, local o ambos. */
+private data class LocalModeOption(val id: String, val label: String, val detail: String)

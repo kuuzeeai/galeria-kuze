@@ -64,10 +64,10 @@ suspend fun shareMedia(context: Context, api: ServerApi, media: Media): Result<U
     }
 
 /**
- * Aplica brillo, contraste, saturación y rotación a la foto.
+ * Aplica brillo, contraste, saturación y temperatura de color a la foto.
  * Devuelve un bitmap nuevo; el original no se toca.
  */
-fun adjustColorMatrix(brightness: Float, contrast: Float, saturation: Float): ColorMatrix {
+fun adjustColorMatrix(brightness: Float, contrast: Float, saturation: Float, temperature: Float): ColorMatrix {
     val matrix = ColorMatrix().apply { setSaturation(saturation) }
     matrix.postConcat(
         ColorMatrix(
@@ -79,6 +79,21 @@ fun adjustColorMatrix(brightness: Float, contrast: Float, saturation: Float): Co
             )
         )
     )
+    // Temperatura: -100 (frío, más azul) a 100 (cálido, más rojo).
+    if (temperature != 0f) {
+        val warm = temperature / 100f * 0.15f
+        val cool = -warm
+        matrix.postConcat(
+            ColorMatrix(
+                floatArrayOf(
+                    1f + warm, 0f, 0f, 0f, 0f,
+                    0f, 1f, 0f, 0f, 0f,
+                    0f, 0f, 1f + cool, 0f, 0f,
+                    0f, 0f, 0f, 1f, 0f
+                )
+            )
+        )
+    }
     return matrix
 }
 
@@ -87,9 +102,10 @@ fun renderAdjusted(
     brightness: Float,
     contrast: Float,
     saturation: Float,
-    rotation: Int
+    rotation: Int,
+    temperature: Float = 0f
 ): Bitmap {
-    val matrix = adjustColorMatrix(brightness, contrast, saturation)
+    val matrix = adjustColorMatrix(brightness, contrast, saturation, temperature)
 
     val width = source.width
     val height = source.height

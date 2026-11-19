@@ -3,5 +3,7 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path android:fillColor="#000" android:pathData="M12 2L18 8L14 12L6 14L2 8L8 2Z"/>
+    <!-- Corazón lleno con latido -->
+    <path android:fillColor="#000" android:pathData="M12 21L12 17M9 17L7 15C7 13 9 11 12 11C15 11 17 13 17 15L15 17L12 21L9 17Z"/>
+    <path android:fillColor="#000" android:pathData="M12 15C8.8 15 6 12.2 6 9C6 7 9 5 12 5C15 5 18 7 18 9C18 12.2 15.2 15 12 15Z"/>
 </vector>

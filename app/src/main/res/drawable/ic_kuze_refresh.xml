@@ -3,5 +3,7 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path android:strokeColor="#000" android:strokeWidth="2" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M12 4V8M12 8L8 12M12 8L16 12M20 12A8 8 0 1 1 4 12A8 8 0 0 1 20 12Z"/>
+    <!-- Recargar: círculo con flecha -->
+    <circle android:cx="12" android:cy="12" android:r="9" android:strokeColor="#000" android:strokeWidth="2" android:fillColor="@android:color/transparent"/>
+    <path android:strokeColor="#000" android:strokeWidth="2" android:strokeLineCap="round" android:pathData="M12 3V9M12 9L8 9M12 9L16 9"/>
 </vector>

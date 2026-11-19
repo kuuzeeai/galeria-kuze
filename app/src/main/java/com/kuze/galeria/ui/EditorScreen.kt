@@ -3,6 +3,7 @@ package com.kuze.galeria.ui
 import android.graphics.Bitmap
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Matrix
+import android.media.MediaMetadataRetriever
 import android.widget.ImageView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -74,22 +75,34 @@ fun EditorScreen(
     var brightness by remember(media.id) { mutableFloatStateOf(0f) }
     var contrast by remember(media.id) { mutableFloatStateOf(1f) }
     var saturation by remember(media.id) { mutableFloatStateOf(1f) }
+    var temperature by remember(media.id) { mutableFloatStateOf(0f) }
     var rotation by remember(media.id) { mutableIntStateOf(0) }
     var cropping by remember(media.id) { mutableStateOf(false) }
 
     LaunchedEffect(media.id) {
-        val request = ImageRequest.Builder(context)
-            .data(media.url)
-            .size(2048)
-            .allowHardware(false)
-            .build()
-        val result = runCatching { loader.execute(request) }.getOrNull()
-        val drawable = (result as? SuccessResult)?.drawable
-        val loaded = drawable?.let { runCatching { it.toBitmap() }.getOrNull() }
+        val loaded = runCatching {
+            if (media.isVideo) {
+                // Extraer un frame del video para editarlo como imagen.
+                MediaMetadataRetriever().use { retriever ->
+                    retriever.setDataSource(context, android.net.Uri.parse(media.url))
+                    val frame = retriever.getFrameAtTime(1_000_000, MediaMetadataRetriever.OPTION_CLOSEST)
+                    frame
+                }
+            } else {
+                val request = ImageRequest.Builder(context)
+                    .data(media.url)
+                    .size(2048)
+                    .allowHardware(false)
+                    .build()
+                val result = loader.execute(request)
+                val drawable = (result as? SuccessResult)?.drawable
+                drawable?.let { runCatching { it.toBitmap() }.getOrNull() }
+            }
+        }.getOrNull()
         if (loaded != null) {
             bitmap = loaded
         } else {
-            error = "No se pudo abrir la foto para editarla"
+            error = "No se pudo abrir para editarlo"
         }
     }
 
@@ -129,7 +142,7 @@ fun EditorScreen(
         error = null
         scope.launch {
             val adjusted = withContext(Dispatchers.Default) {
-                renderAdjusted(source, brightness, contrast, saturation, rotation)
+                renderAdjusted(source, brightness, contrast, saturation, rotation, temperature)
             }
             val result = saveEditedToGallery(context, adjusted)
             saving = false
@@ -197,9 +210,9 @@ fun EditorScreen(
             ) {
                 when {
                     preview != null -> {
-                        val filter = remember(brightness, contrast, saturation) {
+                        val filter = remember(brightness, contrast, saturation, temperature) {
                             ColorMatrixColorFilter(
-                                adjustColorMatrix(brightness, contrast, saturation)
+                                adjustColorMatrix(brightness, contrast, saturation, temperature)
                             )
                         }
                         AndroidView(
@@ -257,6 +270,12 @@ fun EditorScreen(
                         range = 0f..1.8f,
                         onChange = { saturation = it }
                     )
+                    SliderRow(
+                        label = "Temperatura",
+                        value = temperature,
+                        range = -100f..100f,
+                        onChange = { temperature = it }
+                    )
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -292,7 +311,7 @@ fun EditorScreen(
 
             Text(
                 text = "Se guarda una copia nueva en la galería (DCIM/Camera). " +
-                    "La foto original del servidor no se toca y la copia aparece en la app al terminar de subir.",
+                    "El original del servidor no se toca y la copia aparece en la app al terminar.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 12.dp)

@@ -497,13 +497,11 @@ private fun BottomActionBar(
                 onClick = onShare
             )
 
-            if (!media.isVideo) {
-                ExpressiveAction(
-                    iconRes = R.drawable.ic_kuze_edit,
-                    label = "Editar",
-                    onClick = onEdit
-                )
-            }
+            ExpressiveAction(
+                iconRes = R.drawable.ic_kuze_edit,
+                label = "Editar",
+                onClick = onEdit
+            )
 
             ExpressiveAction(
                 iconRes = if (favorite) R.drawable.ic_kuze_favorite_filled else R.drawable.ic_kuze_favorite,

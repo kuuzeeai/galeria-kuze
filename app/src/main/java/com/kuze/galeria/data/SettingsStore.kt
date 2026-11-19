@@ -56,7 +56,7 @@ class SettingsStore(context: Context) {
 
     /** Fotos por fila en la cuadrícula: 2, 3 o 4. */
     var columns: Int
-        get() = prefs.getInt(KEY_COLUMNS, 3).coerceIn(2, 4)
+        get() = prefs.getInt(KEY_COLUMNS, 4).coerceIn(2, 4)
         set(value) = prefs.edit().putInt(KEY_COLUMNS, value.coerceIn(2, 4)).apply()
 
     /** Fuente de la app: sans, serif, mono, cursive o grande. */
@@ -68,6 +68,11 @@ class SettingsStore(context: Context) {
     var favorites: Set<String>
         get() = prefs.getStringSet(KEY_FAVORITES, emptySet())?.toSet() ?: emptySet()
         set(value) = prefs.edit().putStringSet(KEY_FAVORITES, value).apply()
+
+    /** Qué mostrar: "ambos" (servidor + local), "solo_servidor" o "solo_local". */
+    var localMode: String
+        get() = prefs.getString(KEY_LOCAL_MODE, "ambos") ?: "ambos"
+        set(value) = prefs.edit().putString(KEY_LOCAL_MODE, value).apply()
 
     /** Carpetas creadas solo en la app: nombre -> rutas de servidor que contiene. */
     var virtualFolders: Map<String, Set<String>>
@@ -102,6 +107,7 @@ class SettingsStore(context: Context) {
         const val KEY_COLUMNS = "columns"
         const val KEY_FONT = "font"
         const val KEY_FAVORITES = "favorites"
+        const val KEY_LOCAL_MODE = "local_mode"
         const val KEY_VIRTUAL_FOLDERS = "virtual_folders"
         const val KEY_CACHE_VERSION = "cache_version"
     }

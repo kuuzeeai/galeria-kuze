@@ -3,5 +3,7 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path android:strokeColor="#000" android:strokeWidth="2" android:strokeLineJoin="round" android:pathData="M3 3H10V21H3ZM1 7H10M3 4H10M14 14L16 16M18 16L14 20"/>
+    <!-- Nueva carpeta: carpeta con estrella -->
+    <path android:strokeColor="#000" android:strokeWidth="2" android:strokeLineJoin="round" android:pathData="M3 3H10V21H3ZM1 7H10M3 4H10M20 21H4V15H20Z"/>
+    <path android:fillColor="#000" android:pathData="M17 9L16.5 13L21 13.5L18 17L19 21L17 18L15 21L16 17L13 13.5L17.5 13L17 9Z"/>
 </vector>
