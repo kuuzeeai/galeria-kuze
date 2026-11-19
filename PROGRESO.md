@@ -172,22 +172,31 @@ del teléfono para instalarla desde el administrador de archivos.
 - Avisar antes de cualquier cambio en el celular viejo o que pueda borrar datos.
 - La app es solo lectura hasta que se implemente la etapa 6.
 
-## 9. Estado y pendientes (actualizado 2026-11-18)
+## 9. Estado y pendientes (actualizado 2026-11-19)
 
 ### Build: PASA (2026-11-19)
 Se arreglaron los errores de compilación: import duplicado y código basura en ViewerScreen,
 `onMoveItem` mal llamado, diálogos de Crear/Mover carpeta conectados, tipo de `virtualFolders`
-en AppState y `mediaInFolder` en FoldersScreen. También se agregó el repositorio JitPack
-(necesario para ucrop).
+en AppState y `mediaInFolder` en FoldersScreen.
 
 ### Hecho el 2026-11-19
-1. Recorte con ucrop: botón "Recortar" en el editor; guarda copia en caché, abre ucrop y
-   devuelve la foto recortada al editor antes de guardar la copia final.
+1. Recorte: se abandonó ucrop (no abría) y ahora hay pantalla propia (`ui/CropScreen.kt`)
+   con marco arrastrable, esquinas, cuadrícula y botón Recortar. Se quitó la dependencia
+   de ucrop y el repositorio JitPack.
 2. Firma fija: `app/keystore/debug.keystore` + `signingConfigs` en `app/build.gradle.kts`.
    Ya no hay que desinstalar la APK al actualizar.
-3. Descargas en `DCIM/Kuze` con archivo `.nomedia` (no se mezclan con la galería).
+3. Descargas en `Download/Galería` (colección `MediaStore.Downloads`). La copia editada
+   sigue yendo a `DCIM/Camera`.
+4. Menú del visor ahora es hoja inferior estilo Expressive (`ui/ExpressiveMenu.kt`) en vez
+   del desplegable de Android; el botón de descarga usa flecha hacia abajo.
+5. Barra inferior del visor tipo cristal (negra semitransparente, borde claro, sombra) con
+   acciones: compartir, editar, favorito, descargar, eliminar, más. Compartir ahora sí
+   comparte (`shareMedia`) y Descargar descarga.
+6. Botón y gesto de atrás vuelven a la pantalla anterior (`BackHandler` en MainActivity).
+7. La cuadrícula conserva la posición al salir del visor (`LazyGridState` compartido).
+8. Paleta AMOLED (negro puro) y colores de hojas/superficies por paleta.
 
 ### Pendientes
 1. Etapa 6 (borrar): sigue sin implementarse, ver sección 7.
-2. Probar en el teléfono el recorte y que la actualización se instale encima sin desinstalar.
-3. Si ucrop da problemas visuales, revisar su tema en `AndroidManifest.xml`.
+2. Probar en el teléfono: recorte, barra de cristal, atrás, AMOLED y que la APK se
+   instale encima de la anterior sin desinstalar.
